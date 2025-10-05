@@ -25,7 +25,7 @@ class InsuranceOfferSeeder extends Seeder
                     [
                         'name' => 'Базовий',
                         'price_multiplier' => 1.0,
-                        'coverage_multiplier' => 20,
+                        'coverage_multiplier' => 35,
                         'franchise_percent' => 0.15,
                         'benefits' => 'Базове покриття основних ризиків. Швидке онлайн-оформлення.',
                         'conditions' => ['support' => '24/7', 'documents' => 'електронний поліс'],
@@ -33,7 +33,7 @@ class InsuranceOfferSeeder extends Seeder
                     [
                         'name' => 'Комфорт+',
                         'price_multiplier' => 1.6,
-                        'coverage_multiplier' => 35,
+                        'coverage_multiplier' => 60,
                         'franchise_percent' => 0.07,
                         'benefits' => 'Розширене покриття з допомогою на дорозі.',
                         'conditions' => ['support' => '24/7', 'road_assistance' => true],
@@ -41,7 +41,7 @@ class InsuranceOfferSeeder extends Seeder
                     [
                         'name' => 'Преміум',
                         'price_multiplier' => 2.4,
-                        'coverage_multiplier' => 60,
+                        'coverage_multiplier' => 90,
                         'franchise_percent' => 0,
                         'benefits' => 'Максимальне покриття, VIP-підтримка, без франшизи.',
                         'conditions' => ['support' => '24/7', 'vip_service' => true, 'cashback' => '5%'],
