@@ -2,47 +2,74 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
+        'role',
+        'is_active',
+        'last_login_at',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'last_login_at' => 'datetime',
+        'is_active' => 'boolean',
+    ];
+
+    // --- зв’язки ---
+    public function assignedClients()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasMany(Client::class, 'assigned_user_id');
+    }
+
+    public function policies()
+    {
+        return $this->hasMany(Policy::class, 'agent_id');
+    }
+
+    public function reportedClaims()
+    {
+        return $this->hasMany(Claim::class, 'reported_by_id');
+    }
+
+    // --- зручні методи перевірки ролі ---
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isSupervisor(): bool
+    {
+        return $this->role === 'supervisor';
+    }
+
+    public function isManager(): bool
+    {
+        return $this->role === 'manager';
+    }
+
+    // --- форматування імені ролі для адмінки ---
+    public function getRoleLabelAttribute(): string
+    {
+        return match ($this->role) {
+            'admin' => 'Головний адміністратор',
+            'supervisor' => 'Керівник відділу',
+            'manager' => 'Менеджер',
+            default => 'Невідомо',
+        };
     }
 }

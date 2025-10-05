@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        // ---- Категорії страхування ----
+        Schema::create('insurance_categories', function (Blueprint $table) {
+            $table->id();
+            $table->string('code', 64)->unique();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->timestamps();
+            $table->comment('Типи страхування: авто, житло, подорож, здоров’я тощо.');
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('insurance_categories');
+    }
+};
