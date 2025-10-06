@@ -1,41 +1,41 @@
-<?php
+ <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+// use Illuminate\Database\Migrations\Migration;
+// use Illuminate\Database\Schema\Blueprint;
+// use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
-    {
-        // ---- Активності CRM ----
-        Schema::create('activities', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('client_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('policy_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('claim_id')->nullable()->constrained()->nullOnDelete();
-            $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('activity_type', 32); // call / meeting / task / email
-            $table->string('subject');
-            $table->text('description')->nullable();
-            $table->string('status', 32)->default('open')->index(); // open / done / canceled
-            $table->timestamp('due_at')->nullable();
-            $table->timestamp('completed_at')->nullable();
-            $table->json('metadata')->nullable();
-            $table->timestamps();
-            $table->softDeletes();
-            $table->comment('Дії CRM: дзвінки, зустрічі, нагадування, задачі.');
-        });
-    }
+// return new class extends Migration
+// {
+//     /**
+//      * Run the migrations.
+//      */
+//     public function up(): void
+//     {
+//         // ---- Активності CRM ----
+//         Schema::create('activities', function (Blueprint $table) {
+//             $table->id();
+//             $table->foreignId('client_id')->nullable()->constrained()->nullOnDelete();
+//             $table->foreignId('policy_id')->nullable()->constrained()->nullOnDelete();
+//             $table->foreignId('claim_id')->nullable()->constrained()->nullOnDelete();
+//             $table->foreignId('owner_id')->nullable()->constrained('users')->nullOnDelete();
+//             $table->string('activity_type', 32); // call / meeting / task / email
+//             $table->string('subject');
+//             $table->text('description')->nullable();
+//             $table->string('status', 32)->default('open')->index(); // open / done / canceled
+//             $table->timestamp('due_at')->nullable();
+//             $table->timestamp('completed_at')->nullable();
+//             $table->json('metadata')->nullable();
+//             $table->timestamps();
+//             $table->softDeletes();
+//             $table->comment('Дії CRM: дзвінки, зустрічі, нагадування, задачі.');
+//         });
+//     }
 
-    /**
-     * Reverse the migrations.
-     */
-    public function down(): void
-    {
-        Schema::dropIfExists('activities');
-    }
-};
+//     /**
+//      * Reverse the migrations.
+//      */
+//     public function down(): void
+//     {
+//         Schema::dropIfExists('activities');
+//     }
+// }; 

@@ -54,7 +54,7 @@ class InsuranceProductSeeder extends Seeder
 
             // МЕДИЦИНА
             ['category_id' => $health->id, 'code' => 'HEALTH_PRIVATE', 'name' => 'Приватне медичне страхування', 'description' => 'Покриття лікування у приватних клініках.'],
-            ['category_id' => $health->id, 'code' => 'HEALTH_SUPPLEMENTARY', 'name' => 'Додаткове медичне', 'description' => 'Доповнення до державного медичного полісу.'],
+            ['category_id' => $health->id, 'code' => 'HEALTH_SUPPLEMENTARY', 'name' => 'Додаткове медичне страхування', 'description' => 'Доповнення до державного медичного полісу.'],
             ['category_id' => $health->id, 'code' => 'HEALTH_DENTAL', 'name' => 'Стоматологічне страхування', 'description' => 'Покриття лікування зубів, імплантів.'],
             ['category_id' => $health->id, 'code' => 'HEALTH_ACCIDENT', 'name' => 'Нещасні випадки', 'description' => 'Виплати у разі травм, госпіталізації чи інвалідності.'],
             ['category_id' => $health->id, 'code' => 'HEALTH_TRAFFIC', 'name' => 'Медичне при ДТП', 'description' => 'Покриття витрат на лікування після ДТП.'],

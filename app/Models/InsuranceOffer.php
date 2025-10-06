@@ -22,8 +22,20 @@ class InsuranceOffer extends Model
         'conditions',
     ];
 
-    public function product()
+    public function insuranceProduct()
     {
         return $this->belongsTo(InsuranceProduct::class, 'insurance_product_id');
+    }
+
+    // Компанія, яка пропонує цей оффер
+    public function insuranceCompany()
+    {
+        return $this->belongsTo(InsuranceCompany::class, 'insurance_company_id');
+    }
+
+    // Поліси, створені за цим оффером
+    public function policies()
+    {
+        return $this->hasMany(Policy::class, 'insurance_offer_id');
     }
 }
