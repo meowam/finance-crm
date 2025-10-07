@@ -10,11 +10,21 @@ class PolicyPayment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'policy_id', 'due_date', 'paid_at', 'amount',
-        'status', 'method', 'transaction_reference', 'notes'
+        'policy_id',
+        'due_date',
+        'paid_at',
+        'amount',
+        'status',
+        'method',
+        'transaction_reference',
+        'notes',
     ];
 
-    protected $dates = ['due_date', 'paid_at'];
+    protected $casts = [
+        'due_date' => 'date',
+        'paid_at'  => 'datetime',
+        'amount'   => 'decimal:2',
+    ];
 
     public function policy()
     {

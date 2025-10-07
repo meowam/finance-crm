@@ -51,7 +51,6 @@ class InsuranceOfferSeeder extends Seeder
                 foreach ($tariffs as $tariff) {
                     $duration = $possibleDurations[array_rand($possibleDurations)];
 
-                    // Унікальність комбінації (компанія + продукт + тариф + тривалість)
                     $exists = InsuranceOffer::where([
                         ['insurance_company_id', '=', $company->id],
                         ['insurance_product_id', '=', $product->id],

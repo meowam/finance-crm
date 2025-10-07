@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             PolicySeeder::class,
             PolicyPaymentSeeder::class,
             ClaimSeeder::class,
-            ActivitySeeder::class,
+            // ActivitySeeder::class,
         ]);
     }
 }

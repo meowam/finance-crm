@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('claim_number', 64)->unique();
             $table->foreignId('policy_id')->constrained()->cascadeOnDelete();
             $table->foreignId('reported_by_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('status', 32)->default('draft')->index(); // draft / reviewing / approved / rejected / paid
+            $table->string('status', 32)->default('на розгляді')->index();
             $table->timestamp('reported_at')->nullable();
             $table->date('loss_occurred_at')->nullable();
             $table->string('loss_location')->nullable();

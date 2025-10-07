@@ -6,19 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
+
     public function up(): void
     {
-        // ---- Поліси ----
         Schema::create('policies', function (Blueprint $table) {
             $table->id();
             $table->string('policy_number', 64)->unique();
             $table->foreignId('client_id')->constrained()->cascadeOnDelete();
             $table->foreignId('insurance_offer_id')->constrained()->restrictOnDelete();
             $table->foreignId('agent_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('status', 32)->default('чернетка')->index(); // draft / active / expired / canceled
+            $table->string('status', 32)->default('чернетка')->index(); 
             $table->date('effective_date')->nullable();
             $table->date('expiration_date')->nullable();
             $table->decimal('premium_amount', 12, 2)->unsigned();
@@ -33,9 +30,6 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('policies');

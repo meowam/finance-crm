@@ -32,8 +32,8 @@ class Client extends Model
         return $this->hasMany(Policy::class);
     }
 
-    public function activities()
-    {
-        return $this->hasMany(Activity::class);
-    }
+    // public function activities()
+    // {
+    //     return $this->hasMany(Activity::class);
+    // }
 }

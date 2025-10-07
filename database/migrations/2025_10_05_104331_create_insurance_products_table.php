@@ -6,12 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
+
     public function up(): void
     {
-        // ---- Страхові продукти ----
         Schema::create('insurance_products', function (Blueprint $table) {
         $table->id();
 
@@ -20,12 +17,12 @@ return new class extends Migration
             ->constrained('insurance_categories')
             ->nullOnDelete();
 
-        $table->string('code', 64)->unique(); // наприклад, AUTO_BASIC, HOME_PROTECT
+        $table->string('code', 64)->unique(); 
         $table->string('name'); 
-        $table->text('description')->nullable(); // короткий опис
+        $table->text('description')->nullable(); 
 
-        $table->boolean('sales_enabled')->default(true); // можна чи ні оформити
-        $table->json('metadata')->nullable(); // додаткові поля (умови, винятки, коментарі)
+        $table->boolean('sales_enabled')->default(true); 
+        $table->json('metadata')->nullable(); 
 
         $table->timestamps();
 
@@ -34,9 +31,7 @@ return new class extends Migration
 
     }
 
-    /**
-     * Reverse the migrations.
-     */
+
     public function down(): void
     {
         Schema::dropIfExists('insurance_products');

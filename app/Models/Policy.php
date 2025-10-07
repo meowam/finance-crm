@@ -24,32 +24,22 @@ class Policy extends Model
         'notes',
     ];
 
-    protected $dates = [
-        'effective_date',
-        'expiration_date',
-        'deleted_at',
+    protected $casts = [
+        'effective_date'  => 'date',
+        'expiration_date' => 'date',
+        'premium_amount'  => 'decimal:2',
+        'coverage_amount' => 'decimal:2',
+        'commission_rate' => 'decimal:2',
     ];
 
     public function client()
     {
-        return $this->belongsTo(Client::class, 'client_id');
+        return $this->belongsTo(Client::class);
     }
 
     public function insuranceOffer()
     {
         return $this->belongsTo(InsuranceOffer::class, 'insurance_offer_id');
-    }
-
-    public function insuranceProduct()
-    {
-        return $this->hasOneThrough(
-            InsuranceProduct::class,
-            InsuranceOffer::class,
-            'id', // foreign key у InsuranceOffer (primary)
-            'id', // primary key у InsuranceProduct
-            'insurance_offer_id', // foreign key у Policy
-            'insurance_product_id' // foreign key у InsuranceOffer
-        );
     }
 
     public function agent()
@@ -59,11 +49,11 @@ class Policy extends Model
 
     public function payments()
     {
-        return $this->hasMany(PolicyPayment::class, 'policy_id');
+        return $this->hasMany(PolicyPayment::class);
     }
 
     public function claims()
     {
-        return $this->hasMany(Claim::class, 'policy_id');
+        return $this->hasMany(Claim::class);
     }
 }

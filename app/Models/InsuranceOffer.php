@@ -11,15 +11,22 @@ class InsuranceOffer extends Model
 
     protected $fillable = [
         'insurance_product_id',
-        'company_name',
+        'insurance_company_id',
         'offer_name',
-        'price',
+        'price',           
         'coverage_amount',
-        'duration_days',
+        'duration_months',
         'franchise',
-        'is_active',
         'benefits',
         'conditions',
+    ];
+
+    protected $casts = [
+        'price'            => 'decimal:2',
+        'coverage_amount'  => 'decimal:2',
+        'franchise'        => 'decimal:2',
+        'duration_months'  => 'integer',
+        'conditions'       => 'array',
     ];
 
     public function insuranceProduct()
@@ -27,13 +34,11 @@ class InsuranceOffer extends Model
         return $this->belongsTo(InsuranceProduct::class, 'insurance_product_id');
     }
 
-    // Компанія, яка пропонує цей оффер
     public function insuranceCompany()
     {
         return $this->belongsTo(InsuranceCompany::class, 'insurance_company_id');
     }
 
-    // Поліси, створені за цим оффером
     public function policies()
     {
         return $this->hasMany(Policy::class, 'insurance_offer_id');

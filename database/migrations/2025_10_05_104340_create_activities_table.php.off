@@ -6,9 +6,7 @@
 
 // return new class extends Migration
 // {
-//     /**
-//      * Run the migrations.
-//      */
+
 //     public function up(): void
 //     {
 //         // ---- Активності CRM ----
@@ -31,9 +29,7 @@
 //         });
 //     }
 
-//     /**
-//      * Reverse the migrations.
-//      */
+
 //     public function down(): void
 //     {
 //         Schema::dropIfExists('activities');
