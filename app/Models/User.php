@@ -5,8 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser, HasName
 {
     use HasFactory, Notifiable;
 
@@ -30,7 +32,16 @@ class User extends Authenticatable
         'is_active' => 'boolean',
     ];
 
-    // --- зв’язки ---
+    public function canAccessPanel(\Filament\Panel $panel): bool
+    {
+        return $this->is_active && in_array($this->role, ['admin','supervisor','manager']);
+    }
+
+    public function getFilamentName(): string
+    {
+        return $this->name;
+    }
+
     public function assignedClients()
     {
         return $this->hasMany(Client::class, 'assigned_user_id');
@@ -46,7 +57,6 @@ class User extends Authenticatable
         return $this->hasMany(Claim::class, 'reported_by_id');
     }
 
-    // --- зручні методи перевірки ролі ---
     public function isAdmin(): bool
     {
         return $this->role === 'admin';
@@ -62,7 +72,6 @@ class User extends Authenticatable
         return $this->role === 'manager';
     }
 
-    // --- форматування імені ролі для адмінки ---
     public function getRoleLabelAttribute(): string
     {
         return match ($this->role) {
