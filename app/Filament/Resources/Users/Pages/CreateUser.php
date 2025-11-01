@@ -1,0 +1,16 @@
+<?php
+
+namespace App\Filament\Resources\Users\UserResource\Pages;
+
+use App\Filament\Resources\Users\UserResource;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateUser extends CreateRecord
+{
+    protected static string $resource = UserResource::class;
+
+    protected function getFormActions(): array
+    {
+        return []; // отключаем любые кнопки — страница существует, но не активна
+    }
+}

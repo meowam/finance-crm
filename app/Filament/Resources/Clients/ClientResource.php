@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\Clients;
 
 use App\Filament\Resources\Clients\Pages\CreateClient;
@@ -19,6 +18,21 @@ class ClientResource extends Resource
     protected static ?string $model = Client::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    public static function getLabel(): string
+    {
+        return 'Клієнт';
+    }
+
+    public static function getPluralLabel(): string
+    {
+        return 'Клієнти';
+    }
+
+    public static function getNavigationLabel(): string
+    {
+        return 'Клієнти';
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -40,9 +54,9 @@ class ClientResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListClients::route('/'),
+            'index'  => ListClients::route('/'),
             'create' => CreateClient::route('/create'),
-            'edit' => EditClient::route('/{record}/edit'),
+            'edit'   => EditClient::route('/{record}/edit'),
         ];
     }
 }

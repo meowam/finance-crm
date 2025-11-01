@@ -1,12 +1,12 @@
 <?php
-
 namespace App\Filament\Resources\Clients\Tables;
 
-use Filament\Actions\BulkActionGroup;
+use App\Filament\Resources\Users\UserResource;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ClientsTable
 {
@@ -14,63 +14,138 @@ class ClientsTable
     {
         return $table
             ->columns([
-                TextColumn::make('type')
-                    ->searchable(),
-                TextColumn::make('status')
-                    ->searchable(),
-                TextColumn::make('first_name')
-                    ->searchable(),
-                TextColumn::make('last_name')
-                    ->searchable(),
-                TextColumn::make('middle_name')
-                    ->searchable(),
-                TextColumn::make('company_name')
-                    ->searchable(),
-                TextColumn::make('primary_email')
-                    ->searchable(),
-                TextColumn::make('primary_phone')
-                    ->searchable(),
-                TextColumn::make('document_number')
-                    ->searchable(),
-                TextColumn::make('tax_id')
-                    ->searchable(),
-                TextColumn::make('date_of_birth')
-                    ->date()
-                    ->sortable(),
-                TextColumn::make('preferred_contact_method')
-                    ->badge(),
-                TextColumn::make('city')
-                    ->searchable(),
-                TextColumn::make('address_line')
-                    ->searchable(),
-                TextColumn::make('source')
-                    ->searchable(),
-                TextColumn::make('assigned_user_id')
-                    ->numeric()
-                    ->sortable(),
                 TextColumn::make('created_at')
-                    ->dateTime()
+                    ->label('Реєстрація')
+                    ->dateTime('d.m.Y H:i:s')
+                    ->sortable(),
+
+                TextColumn::make('pib')
+                    ->label('ПІБ')
+                    ->state(function ($record) {
+                        $last  = trim((string) $record->last_name);
+                        $first = trim((string) $record->first_name);
+                        $mid   = trim((string) ($record->middle_name ?? ''));
+
+                        if ($last === '' && $first === '') {
+                            return '—';
+                        }
+
+                        if ($mid !== '') {
+                            $fi = mb_strtoupper(mb_substr($first, 0, 1));
+                            $mi = mb_strtoupper(mb_substr($mid, 0, 1));
+                            return "{$last} {$fi}.{$mi}.";
+                        }
+
+                        // ❗ завжди Прізвище потім Ім’я
+                        return trim("{$last} {$first}");
+                    })
+                    ->searchable(query: function (Builder $query, string $search) {
+                        $query->where(function (Builder $q) use ($search) {
+                            $q->where('last_name', 'like', "%{$search}%")
+                                ->orWhere('first_name', 'like', "%{$search}%")
+                                ->orWhere('middle_name', 'like', "%{$search}%");
+                        });
+                    })
+                    ->sortable(query: function (Builder $query, string $direction) {
+                        $query->orderBy('last_name', $direction)
+                            ->orderBy('first_name', $direction);
+                    }),
+
+                TextColumn::make('type')
+                    ->label('Тип')
+                    ->formatStateUsing(fn($state) => match ($state) {
+                        'company'    => 'Компанія',
+                        'individual' => 'Фізична особа',
+                        default      => '—',
+                    })
+                    ->badge()
+                    ->color(fn($state) => match ($state) {
+                        'company'    => 'info',
+                        'individual' => 'gray',
+                        default      => 'gray',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('updated_at')
-                    ->dateTime()
+                    ->searchable(),
+
+                TextColumn::make('status')
+                    ->label('Статус')
+                    ->formatStateUsing(fn($state) => match ($state) {
+                        'active'   => 'Активний',
+                        'archived' => 'Архівовано',
+                        'lead'     => 'Потенційний',
+                        default    => '—',
+                    })
+                    ->badge()
+                    ->color(fn($state) => match ($state) {
+                        'active'   => 'success',
+                        'lead'     => 'warning',
+                        'archived' => 'gray',
+                        default    => 'gray',
+                    })
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('deleted_at')
-                    ->dateTime()
+                    ->searchable(),
+
+                TextColumn::make('primary_phone')
+                    ->label('Телефон')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->searchable(),
+
+                TextColumn::make('primary_email')
+                    ->label('Email')
+                    ->url(fn($record) => "mailto:{$record->primary_email}")
+                    ->toggleable()
+                    ->searchable(),
+
+                TextColumn::make('document_number')
+                    ->label('Документ')
+                    ->toggleable()
+                    ->searchable(),
+
+                TextColumn::make('tax_id')
+                    ->label('ІПН / ЄДРПОУ')
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->searchable(),
+
+                TextColumn::make('source')
+                    ->label('Джерело')
+                    ->formatStateUsing(fn($state) => match ($state) {
+                        'office'         => 'Офіс',
+                        'online'         => 'Онлайн',
+                        'recommendation' => 'Рекомендація',
+                        null, '' => '—',
+                        default          => (string) $state,
+                    })
+                    ->badge()
+                    ->color(fn($state) => match ($state) {
+                        'office'         => 'info',
+                        'online'         => 'success',
+                        'recommendation' => 'warning',
+                        default          => 'gray',
+                    })
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->searchable(),
+
+                TextColumn::make('assignedUser.name')
+                    ->label('Менеджер')
+                    ->placeholder('—')
+                    ->url(fn($record) => $record->assigned_user_id
+                            ? UserResource::getUrl('edit', ['record' => $record->assigned_user_id])
+                            : null
+                    )
+                    ->openUrlInNewTab()
+                    ->sortable()
+                    ->toggleable(),
             ])
-            ->filters([
-                //
-            ])
+            ->defaultSort('created_at', 'desc')
+            ->defaultPaginationPageOption(25)
+
+            ->filters([])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->label('Редагувати'),
             ])
             ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+                DeleteBulkAction::make()->label('Видалити обране'),
             ]);
     }
 }

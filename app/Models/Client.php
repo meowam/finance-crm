@@ -1,8 +1,6 @@
 <?php
-
 namespace App\Models;
 
-use App\Models\Activity;
 use App\Models\ClientContact;
 use App\Models\Policy;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,12 +11,11 @@ class Client extends Model
     use HasFactory;
 
     protected $fillable = [
-    'type', 'status', 'first_name', 'last_name', 'middle_name',
-    'company_name', 'primary_email', 'primary_phone', 'document_number',
-    'tax_id', 'date_of_birth', 'preferred_contact_method',
-    'city', 'address_line', 'source', 'assigned_user_id', 'notes'
-];
-
+        'type', 'status', 'first_name', 'last_name', 'middle_name',
+        'company_name', 'primary_email', 'primary_phone', 'document_number',
+        'tax_id', 'date_of_birth', 'preferred_contact_method',
+        'city', 'address_line', 'source', 'assigned_user_id', 'notes',
+    ];
 
     protected $dates = ['date_of_birth', 'deleted_at'];
 
@@ -30,6 +27,11 @@ class Client extends Model
     public function policies()
     {
         return $this->hasMany(Policy::class);
+    }
+
+    public function assignedUser()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'assigned_user_id');
     }
 
     // public function activities()
