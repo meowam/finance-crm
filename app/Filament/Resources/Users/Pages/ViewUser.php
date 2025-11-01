@@ -11,7 +11,7 @@ class ViewUser extends ViewRecord
 
     protected function getHeaderActions(): array
     {
-        return []; // никаких действий — чистый read-only
+        return []; 
     }
 
     public function getTitle(): string

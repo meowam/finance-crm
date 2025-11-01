@@ -13,7 +13,6 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    // Не показываем в навигации
     protected static bool $shouldRegisterNavigation = false;
 
     public static function getLabel(): string
@@ -47,7 +46,7 @@ class UserResource extends Resource
                             'admin'      => 'Адміністратор',
                             'supervisor' => 'Керівник',
                             'manager'    => 'Менеджер',
-                            default      => (string) $state, // на всякий случай
+                            default      => (string) $state, 
                         });
                     }),
 
@@ -63,7 +62,6 @@ class UserResource extends Resource
 
                 Toggle::make('is_active')
                     ->label('Активний')
-
                     ->disabled()
                     ->dehydrated(false),
 
@@ -92,13 +90,11 @@ class UserResource extends Resource
 
     public static function table(Table $table): Table
     {
-        // Таблица не нужна — оставляем пусто
         return $table->columns([]);
     }
 
     public static function getPages(): array
     {
-        // Единственная страница — «просмотр» на базе EditRecord
         return [
             'index' => UserResource\Pages\ListUsers::route('/'),
             'edit'  => UserResource\Pages\EditUser::route('/{record}'),

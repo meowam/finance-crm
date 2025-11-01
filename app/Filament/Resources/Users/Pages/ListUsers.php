@@ -11,7 +11,6 @@ class ListUsers extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        // без создания — список только для навигации к просмотру
         return [];
     }
 }

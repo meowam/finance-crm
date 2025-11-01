@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\InsuranceCategories\Tables;
 
 use Filament\Actions\BulkActionGroup;
@@ -13,19 +12,31 @@ class InsuranceCategoriesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('code')
-                    ->searchable(),
+                    ->label('Код')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('name')
+                    ->label('Назва')
+                    ->searchable()
+                    ->sortable(),
+                TextColumn::make('description')
+                    ->label('Опис')
+                    ->wrap()
+                    ->limit(200)
                     ->searchable(),
                 TextColumn::make('created_at')
+                    ->label('Створено')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(),
                 TextColumn::make('updated_at')
+                    ->label('Змінено')
                     ->dateTime()
                     ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(),
             ])
             ->filters([
                 //

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\Claims;
 
 use App\Filament\Resources\Claims\Pages\CreateClaim;
@@ -13,12 +12,18 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use UnitEnum;
 
 class ClaimResource extends Resource
 {
     protected static ?string $model = Claim::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel                  = 'Страхові випадки';
+    protected static ?string $modelLabel                       = 'Заява';
+    protected static ?string $pluralModelLabel                 = 'Заяви';
+    // protected static string|UnitEnum|null $navigationGroup = 'Страхові випадки';
 
     public static function form(Schema $schema): Schema
     {
@@ -40,9 +45,9 @@ class ClaimResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListClaims::route('/'),
+            'index'  => ListClaims::route('/'),
             'create' => CreateClaim::route('/create'),
-            'edit' => EditClaim::route('/{record}/edit'),
+            'edit'   => EditClaim::route('/{record}/edit'),
         ];
     }
 }

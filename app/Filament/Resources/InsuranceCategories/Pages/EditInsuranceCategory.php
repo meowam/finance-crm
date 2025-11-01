@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\InsuranceCategories\Pages;
 
 use App\Filament\Resources\InsuranceCategories\InsuranceCategoryResource;
@@ -9,7 +8,7 @@ use Filament\Resources\Pages\EditRecord;
 class EditInsuranceCategory extends EditRecord
 {
     protected static string $resource = InsuranceCategoryResource::class;
-
+    protected static ?string $title   = 'Редагувати страхування';
     protected function getHeaderActions(): array
     {
         return [

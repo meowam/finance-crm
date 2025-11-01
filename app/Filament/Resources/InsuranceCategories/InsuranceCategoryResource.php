@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\InsuranceCategories;
 
 use App\Filament\Resources\InsuranceCategories\Pages\CreateInsuranceCategory;
@@ -19,6 +18,10 @@ class InsuranceCategoryResource extends Resource
     protected static ?string $model = InsuranceCategory::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel  = 'Категорії страхувань';
+    protected static ?string $modelLabel       = 'Страхування';
+    protected static ?string $pluralModelLabel = 'Категорії страхувань';
 
     public static function form(Schema $schema): Schema
     {
@@ -40,9 +43,9 @@ class InsuranceCategoryResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListInsuranceCategories::route('/'),
+            'index'  => ListInsuranceCategories::route('/'),
             'create' => CreateInsuranceCategory::route('/create'),
-            'edit' => EditInsuranceCategory::route('/{record}/edit'),
+            'edit'   => EditInsuranceCategory::route('/{record}/edit'),
         ];
     }
 }

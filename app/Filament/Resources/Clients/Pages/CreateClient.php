@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\Clients\Pages;
 
 use App\Filament\Resources\Clients\ClientResource;
-use App\Filament\Resources\Policies\PolicyResource; // поправь, если другой неймспейс
+use App\Filament\Resources\Policies\PolicyResource; 
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Actions\Action;
 

@@ -84,10 +84,10 @@ class PolicySeeder extends Seeder
                 ]);
 
                 $policyStatus = match (true) {
-                    $payment->status !== 'оплачено' && $today->greaterThan($payment->due_date) => 'скасований',
-                    $payment->status !== 'оплачено' && $today->lessThanOrEqualTo($payment->due_date) => 'чернетка',
-                    $payment->status === 'оплачено' && $today->greaterThanOrEqualTo($expiration) => 'завершений',
-                    $payment->status === 'оплачено' && $today->between($effective, $expiration) => 'активний',
+                    $payment->status !== 'оплачено' && $today->greaterThan($payment->due_date) => 'canceled',
+                    $payment->status !== 'оплачено' && $today->lessThanOrEqualTo($payment->due_date) => 'draft',
+                    $payment->status === 'оплачено' && $today->greaterThanOrEqualTo($expiration) => 'completed',
+                    $payment->status === 'оплачено' && $today->between($effective, $expiration) => 'active',
                     default => 'чернетка',
                 };
 

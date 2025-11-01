@@ -25,7 +25,6 @@ class EditUser extends EditRecord
         return [];
     }
 
-    // ВАЖНО: говорим Filament, что "главная" для этого ресурса — список клиентов
     protected function getIndexUrl(): string
     {
         return ClientResource::getUrl('index');

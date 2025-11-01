@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\InsuranceOffers;
 
 use App\Filament\Resources\InsuranceOffers\Pages\CreateInsuranceOffer;
@@ -19,6 +18,10 @@ class InsuranceOfferResource extends Resource
     protected static ?string $model = InsuranceOffer::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel                   = 'Страхові пропозиції';
+    protected static ?string $modelLabel                        = 'Страхові пропозиції';
+    protected static ?string $pluralModelLabel                  = 'Страхові пропозиції';
 
     public static function form(Schema $schema): Schema
     {
@@ -40,9 +43,9 @@ class InsuranceOfferResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListInsuranceOffers::route('/'),
+            'index'  => ListInsuranceOffers::route('/'),
             'create' => CreateInsuranceOffer::route('/create'),
-            'edit' => EditInsuranceOffer::route('/{record}/edit'),
+            'edit'   => EditInsuranceOffer::route('/{record}/edit'),
         ];
     }
 }

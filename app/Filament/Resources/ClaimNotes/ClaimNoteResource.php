@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\ClaimNotes;
 
 use App\Filament\Resources\ClaimNotes\Pages\CreateClaimNote;
@@ -19,7 +18,9 @@ class ClaimNoteResource extends Resource
     protected static ?string $model = ClaimNote::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
+    protected static ?string $navigationLabel                   = 'Нотатки';
+    protected static ?string $modelLabel                        = 'Нотатки';
+    protected static ?string $pluralModelLabel                  = 'Нотатки';
     public static function form(Schema $schema): Schema
     {
         return ClaimNoteForm::configure($schema);
@@ -40,9 +41,9 @@ class ClaimNoteResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListClaimNotes::route('/'),
+            'index'  => ListClaimNotes::route('/'),
             'create' => CreateClaimNote::route('/create'),
-            'edit' => EditClaimNote::route('/{record}/edit'),
+            'edit'   => EditClaimNote::route('/{record}/edit'),
         ];
     }
 }

@@ -11,6 +11,6 @@ class CreateUser extends CreateRecord
 
     protected function getFormActions(): array
     {
-        return []; // отключаем любые кнопки — страница существует, но не активна
+        return []; 
     }
 }

@@ -1,8 +1,6 @@
 <?php
-
 namespace App\Filament\Resources\InsuranceCompanies\Tables;
 
-use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
@@ -13,40 +11,66 @@ class InsuranceCompaniesTable
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('name')
-                    ->searchable(),
+                    ->label('Назва компанії')
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('license_number')
-                    ->searchable(),
+                    ->label('Номер ліцензії')
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('country')
-                    ->searchable(),
+                    ->label('Країна')
+                    ->searchable()
+                    ->sortable()->toggleable(),
+
                 TextColumn::make('contact_email')
+                    ->label('Ел. пошта')
+                    ->url(fn($record) => $record->contact_email ? 'mailto:' . $record->contact_email : null)
+                    ->openUrlInNewTab(false)
                     ->searchable(),
+
                 TextColumn::make('contact_phone')
-                    ->searchable(),
+                    ->label('Телефон')
+                    ->url(fn($record) => $record->contact_phone ? 'tel:' . preg_replace('/\s+/', '', $record->contact_phone) : null)
+                    ->openUrlInNewTab(false)
+                    ->searchable()->toggleable(),
+
                 TextColumn::make('website')
-                    ->searchable(),
+                    ->label('Вебсайт')
+                    ->formatStateUsing(fn($state) => $state ? preg_replace('#^https?://#i', '', $state) : null)
+                    ->url(fn($record) => $record->website
+                            ? (preg_match('#^https?://#i', $record->website) ? $record->website : 'https://' . $record->website)
+                            : null)
+                    ->openUrlInNewTab()
+                    ->searchable()->toggleable(),
+
                 TextColumn::make('logo_path')
-                    ->searchable(),
+                    ->label('Логотип') 
+                    ->sortable()
+                    ->toggleable(),
+
                 TextColumn::make('created_at')
-                    ->dateTime()
+                    ->label('Створено')
+                    ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
                 TextColumn::make('updated_at')
-                    ->dateTime()
+                    ->label('Оновлено')
+                    ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-            ])
-            ->filters([
-                //
             ])
             ->recordActions([
-                EditAction::make(),
+                EditAction::make()->label('Змінити'),
             ])
             ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
+                DeleteBulkAction::make()->label('Видалити вибрані'),
             ]);
     }
 }

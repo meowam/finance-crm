@@ -9,6 +9,7 @@ use Filament\Resources\Pages\EditRecord;
 class EditInsuranceOffer extends EditRecord
 {
     protected static string $resource = InsuranceOfferResource::class;
+protected static ?string $title   = 'Редагувати страхову пропозицію';
 
     protected function getHeaderActions(): array
     {
