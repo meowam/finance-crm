@@ -1,15 +1,18 @@
 <?php
+
 namespace App\Filament\Resources\Policies\Schemas;
 
 use App\Models\Client;
 use App\Models\InsuranceOffer;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -74,7 +77,7 @@ class PolicyForm
                                 'Базовий'  => 3.00,
                                 'Комфорт+' => 1.50,
                                 'Преміум'  => 0.50,
-                                default    => 2.00, 
+                                default    => 2.00,
                             };
                             $set('commission_rate', number_format($autoRate, 2, '.', ''));
                         }
@@ -147,6 +150,18 @@ class PolicyForm
                     ->required()
                     ->default('draft')
                     ->rules(['required', 'in:draft,active,completed,canceled'])
+                    ->disabled()       
+                    ->dehydrated(true) 
+                    ->reactive()
+                    ->afterStateHydrated(function ($state, callable $set, callable $get) {
+                        $paymentStatus = $get('payments.0.status') ?? 'draft';
+                        $policyStatus = match ($paymentStatus) {
+                            'paid' => 'active',
+                            'scheduled', 'draft' => 'draft',
+                            default => 'draft',
+                        };
+                        $set('status', $policyStatus);
+                    })
                     ->columnSpan(1),
 
                 DatePicker::make('effective_date')
@@ -165,11 +180,14 @@ class PolicyForm
                             $exp = Carbon::parse($state)->addMonths((int) $offer->duration_months)->format('Y-m-d');
                             $set('expiration_date', $exp);
                         }
+                        if ($state) {
+                            $set('payments.0.due_date', Carbon::parse($state)->addDays(rand(5,7))->toDateString());
+                        }
                     })
                     ->columnSpan(1),
 
                 DatePicker::make('expiration_date')
-                    ->label('Закінчення')
+                    ->label('Закінчення дії')
                     ->native(false)
                     ->displayFormat('d.m.Y')
                     ->format('Y-m-d')
@@ -186,6 +204,13 @@ class PolicyForm
                     ->readOnly()
                     ->required()
                     ->rules(['numeric', 'min:0'])
+                    ->reactive()
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        $set('payments.0.amount', $state !== null && $state !== ''
+                            ? number_format((float) $state, 2, '.', '')
+                            : number_format(0, 2, '.', '')
+                        );
+                    })
                     ->columnSpan(1),
 
                 TextInput::make('coverage_amount')
@@ -194,6 +219,7 @@ class PolicyForm
                     ->step('0.01')
                     ->minValue(0)
                     ->readOnly()
+                    ->required()
                     ->rules(['nullable', 'numeric', 'min:0'])
                     ->columnSpan(1),
 
@@ -208,7 +234,8 @@ class PolicyForm
                 TextInput::make('commission_rate')
                     ->label('Комісія, %')
                     ->type('number')
-                    ->step('0.01')->readOnly()
+                    ->step('0.01')
+                    ->readOnly()
                     ->minValue(0)
                     ->required()
                     ->rules(['numeric', 'min:0'])
@@ -223,6 +250,7 @@ class PolicyForm
                         $rate = (float) ($state ?? 0);
                         $prem = $base + ($base * ($rate / 100));
                         $set('premium_amount', number_format($prem, 2, '.', ''));
+                        $set('payments.0.amount', number_format($prem, 2, '.', ''));
                     })
                     ->columnSpan(1),
 
@@ -231,6 +259,113 @@ class PolicyForm
                     ->rows(3)
                     ->dehydrateStateUsing(fn ($s) => filled($s) ? $s : null)
                     ->columnSpanFull(),
+
+                Repeater::make('payments')
+                    ->label('Оплата при створенні')
+                    ->relationship('payments')
+                    ->minItems(0)
+                    ->maxItems(1)
+                    ->defaultItems(0)
+                    ->reorderable(false)
+                    ->columns(2)
+                    ->schema([
+                        Select::make('method')
+                            ->label('Метод')
+                            ->placeholder('Оберіть метод…')
+                            ->options([
+                                'no_method' => 'Не вибрано',
+                                'card'      => 'Картка',
+                                'cash'      => 'Готівка',
+                                'transfer'  => 'Переказ',
+                            ])
+                            ->native(false)
+                            ->required()
+                            ->rules(['required', 'in:no_method,card,cash,transfer'])
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $paymentStatus = match ($state) {
+                                    'card', 'cash' => 'paid',
+                                    'transfer'     => 'scheduled',
+                                    default        => 'draft',
+                                };
+                                $set('status', $paymentStatus);
+                                $policyStatus = $paymentStatus === 'paid' ? 'active' : 'draft';
+                                $set('../../status', $policyStatus);
+                            })
+                            ->columnSpan(1),
+
+                        Select::make('status')
+                            ->label('Статус')
+                            ->options([
+                                'draft'     => 'чернетка',
+                                'scheduled' => 'заплановано',
+                                'paid'      => 'сплачено',
+                                'canceled'  => 'скасовано',
+                            ])
+                            ->disabled()
+                            ->dehydrated(true)
+                            ->afterStateHydrated(function ($state, callable $set, $record, $get) {
+                                $method = $get('method') ?? 'no_method';
+                                $paymentStatus = match ($method) {
+                                    'card', 'cash' => 'paid',
+                                    'transfer'     => 'scheduled',
+                                    default        => 'draft',
+                                };
+                                $set('status', $paymentStatus);
+
+                                $policyStatus = $paymentStatus === 'paid' ? 'active' : 'draft';
+                                $set('../../status', $policyStatus);
+                            })
+                            ->reactive()
+                            ->afterStateUpdated(function ($state, callable $set) {
+                                $policyStatus = $state === 'paid' ? 'active' : 'draft';
+                                $set('../../status', $policyStatus);
+                            })
+                            ->columnSpan(1),
+
+                        DatePicker::make('due_date')
+                            ->label('Строк оплати')
+                            ->native(false)
+                            ->displayFormat('d.m.Y')
+                            ->format('Y-m-d')
+                            ->readOnly()
+                            ->required()
+                            ->default(function (Get $get) {
+                                $eff = $get('../../effective_date');
+                                $base = $eff ? Carbon::parse($eff) : now();
+                                return $base->copy()->addDays(rand(5,7))->toDateString();
+                            })
+                            ->afterStateHydrated(function ($state, callable $set, Get $get) {
+                                if (blank($state)) {
+                                    $eff = $get('../../effective_date');
+                                    $base = $eff ? Carbon::parse($eff) : now();
+                                    $set('due_date', $base->copy()->addDays(rand(5,7))->toDateString());
+                                }
+                            })
+                            ->columnSpan(1),
+
+                        TextInput::make('amount')
+                            ->label('Сума')
+                            ->type('number')
+                            ->step('0.01')
+                            ->minValue(0)
+                            ->readOnly()
+                            ->required()
+                            ->rules(['numeric', 'min:0'])
+                            ->afterStateHydrated(function ($state, callable $set, Get $get) {
+                                if ($state !== null && $state !== '') {
+                                    return;
+                                }
+                                $premium = $get('../../premium_amount');
+                                $set('amount', $premium !== null ? number_format((float) $premium, 2, '.', '') : number_format(0, 2, '.', ''));
+                            })
+                            ->dehydrateStateUsing(function ($state, Get $get) {
+                                $val = $get('../../premium_amount');
+                                return $val !== null && $val !== '' ? number_format((float) $val, 2, '.', '') : number_format(0, 2, '.', '');
+                            })
+                            ->columnSpan(1),
+                    ])
+                    ->columnSpan(2),
             ]);
     }
 }
