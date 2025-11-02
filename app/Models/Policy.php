@@ -1,10 +1,9 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Support\Str;
 class Policy extends Model
 {
     use HasFactory;
@@ -56,4 +55,19 @@ class Policy extends Model
     {
         return $this->hasMany(Claim::class);
     }
+    protected static function booted(): void
+    {
+        static::creating(function (Policy $m) {
+            if (filled($m->policy_number)) {
+                return;
+            }
+
+            do {
+                $candidate = 'POL-' . Str::upper(Str::random(10));
+            } while (self::where('policy_number', $candidate)->exists());
+
+            $m->policy_number = $candidate;
+        });
+    }
+
 }

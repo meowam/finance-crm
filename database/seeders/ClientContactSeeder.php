@@ -20,19 +20,16 @@ class ClientContactSeeder extends Seeder
                 $type = $faker->randomElement(['email', 'phone', 'telegram']);
                 $value = null;
 
-                // --- логіка генерації під тип ---
                 switch ($type) {
                     case 'email':
                         $value = $faker->unique()->safeEmail();
                         break;
 
                     case 'phone':
-                        // український формат
                         $value = '+380' . $faker->numberBetween(50, 99) . $faker->numerify('#######');
                         break;
 
                     case 'telegram':
-                        // 50% — нік, 50% — номер
                         if ($faker->boolean(50)) {
                             $value = '@' . $faker->userName();
                         } else {

@@ -10,7 +10,6 @@ class InsuranceProductSeeder extends Seeder
 {
     public function run(): void
     {
-        // ---- Категорії ----
         $categories = [
             ['code' => 'AUTO', 'name' => 'Транспорт', 'description' => 'Авто, мото, велосипеди, електротранспорт.'],
             ['code' => 'HOME', 'name' => 'Майно', 'description' => 'Житло, гаджети, зброя, будівельні ризики.'],
@@ -25,7 +24,6 @@ class InsuranceProductSeeder extends Seeder
             InsuranceCategory::firstOrCreate(['code' => $c['code']], $c);
         }
 
-        // ---- Отримуємо ID категорій ----
         $auto = InsuranceCategory::where('code', 'AUTO')->first();
         $home = InsuranceCategory::where('code', 'HOME')->first();
         $health = InsuranceCategory::where('code', 'HEALTH')->first();
@@ -34,7 +32,6 @@ class InsuranceProductSeeder extends Seeder
         $pet = InsuranceCategory::where('code', 'PET')->first();
         $liability = InsuranceCategory::where('code', 'LIABILITY')->first();
 
-        // ---- Продукти ----
         $products = [
 
             // ТРАНСПОРТ

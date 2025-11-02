@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\Policies;
 
 use App\Filament\Resources\Policies\Pages\CreatePolicy;
@@ -19,6 +18,10 @@ class PolicyResource extends Resource
     protected static ?string $model = Policy::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel  = 'Поліси';
+    protected static ?string $modelLabel       = 'Поліси';
+    protected static ?string $pluralModelLabel = 'Поліси';
 
     public static function form(Schema $schema): Schema
     {
@@ -40,9 +43,9 @@ class PolicyResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListPolicies::route('/'),
+            'index'  => ListPolicies::route('/'),
             'create' => CreatePolicy::route('/create'),
-            'edit' => EditPolicy::route('/{record}/edit'),
+            'edit'   => EditPolicy::route('/{record}/edit'),
         ];
     }
 }

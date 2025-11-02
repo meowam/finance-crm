@@ -36,7 +36,6 @@ class ClientsTable
                             return "{$last} {$fi}.{$mi}.";
                         }
 
-                        // ❗ завжди Прізвище потім Ім’я
                         return trim("{$last} {$first}");
                     })
                     ->searchable(query: function (Builder $query, string $search) {

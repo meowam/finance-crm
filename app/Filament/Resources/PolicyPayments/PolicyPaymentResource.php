@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\PolicyPayments;
 
 use App\Filament\Resources\PolicyPayments\Pages\CreatePolicyPayment;
@@ -19,6 +18,10 @@ class PolicyPaymentResource extends Resource
     protected static ?string $model = PolicyPayment::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+
+    protected static ?string $navigationLabel                   = 'Оплати полісів';
+    protected static ?string $modelLabel                        = 'Оплати полісів страхувань';
+    protected static ?string $pluralModelLabel                  = 'Оплати полісів';
 
     public static function form(Schema $schema): Schema
     {
@@ -40,9 +43,9 @@ class PolicyPaymentResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListPolicyPayments::route('/'),
+            'index'  => ListPolicyPayments::route('/'),
             'create' => CreatePolicyPayment::route('/create'),
-            'edit' => EditPolicyPayment::route('/{record}/edit'),
+            'edit'   => EditPolicyPayment::route('/{record}/edit'),
         ];
     }
 }

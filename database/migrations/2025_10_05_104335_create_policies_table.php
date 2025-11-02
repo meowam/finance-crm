@@ -15,7 +15,7 @@ return new class extends Migration
             $table->foreignId('client_id')->constrained()->cascadeOnDelete();
             $table->foreignId('insurance_offer_id')->constrained()->restrictOnDelete();
             $table->foreignId('agent_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('status', 32)->default('чернетка')->index(); 
+            $table->string('status', 32)->default('draft')->index();
             $table->date('effective_date')->nullable();
             $table->date('expiration_date')->nullable();
             $table->decimal('premium_amount', 12, 2)->unsigned();

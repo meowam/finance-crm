@@ -10,7 +10,6 @@ class UserSeeder extends Seeder
 {
     public function run(): void
     {
-        // --- головний адміністратор ---
         User::firstOrCreate(
             ['email' => 'admin@insurance.local'],
             [
@@ -21,7 +20,6 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // --- керівники ---
         for ($i = 1; $i <= 3; $i++) {
             User::firstOrCreate(
                 ['email' => "supervisor{$i}@insurance.local"],
@@ -34,7 +32,6 @@ class UserSeeder extends Seeder
             );
         }
 
-        // --- менеджери ---
         for ($i = 1; $i <= 7; $i++) {
             User::firstOrCreate(
                 ['email' => "manager{$i}@insurance.local"],

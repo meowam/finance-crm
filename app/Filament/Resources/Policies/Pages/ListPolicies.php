@@ -9,7 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 class ListPolicies extends ListRecords
 {
     protected static string $resource = PolicyResource::class;
-
+    protected static ?string $title   = 'Поліси';
     protected function getHeaderActions(): array
     {
         return [

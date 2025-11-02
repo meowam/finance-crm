@@ -20,7 +20,7 @@ class InsuranceCompanyResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $navigationLabel  = 'Компанії страхувань';
+    protected static ?string $navigationLabel  = 'Страхові компанії';
     protected static ?string $modelLabel       = 'Компанії страхувань';
     protected static ?string $pluralModelLabel = 'Компанії страхувань';
 

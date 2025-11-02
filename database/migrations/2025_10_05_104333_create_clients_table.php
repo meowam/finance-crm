@@ -9,11 +9,10 @@ return new class extends Migration
 
     public function up(): void
     {
-        // ---- Клієнти ----
         Schema::create('clients', function (Blueprint $table) {
         $table->id();
-        $table->string('type', 20)->default('individual')->index(); // individual / company
-        $table->string('status', 32)->default('lead')->index(); // lead / active / archived
+        $table->string('type', 20)->default('individual')->index(); 
+        $table->string('status', 32)->default('lead')->index(); 
 
         $table->string('first_name');
         $table->string('last_name');
@@ -23,9 +22,9 @@ return new class extends Migration
         $table->string('primary_email')->nullable();
         $table->string('primary_phone', 32)->nullable();
 
-        $table->string('document_number'); // дві латинські літери + 6 цифр
-        $table->string('tax_id', 64)->nullable(); // ІПН або код ЄДРПОУ
-        $table->date('date_of_birth'); // тепер обов’язкове
+        $table->string('document_number'); 
+        $table->string('tax_id', 64)->nullable(); 
+        $table->date('date_of_birth'); 
 
         $table->enum('preferred_contact_method', ['phone', 'email'])->nullable();
         $table->string('city')->nullable();

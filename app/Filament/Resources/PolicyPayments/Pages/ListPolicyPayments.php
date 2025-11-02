@@ -9,6 +9,7 @@ use Filament\Resources\Pages\ListRecords;
 class ListPolicyPayments extends ListRecords
 {
     protected static string $resource = PolicyPaymentResource::class;
+    protected static ?string $title   = 'Оплати полісів';
 
     protected function getHeaderActions(): array
     {

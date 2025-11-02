@@ -62,8 +62,8 @@ class ClaimForm
                     ->dehydrated(false)
                     ->afterStateHydrated(function (TextInput $component, $state, $record) {
                         $name = $record
-                            ? optional($record->reportedBy)->name// Edit: з БД
-                            : optional(Auth::user())->name;      // Create: поточний користувач
+                            ? optional($record->reportedBy)->name
+                            : optional(Auth::user())->name;     
                         $component->state($name);
                     })
                     ->default(fn() => optional(Auth::user())->name)

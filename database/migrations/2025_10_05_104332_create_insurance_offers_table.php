@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->foreignId('insurance_product_id')->constrained('insurance_products')->cascadeOnDelete();
             $table->foreignId('insurance_company_id')->constrained('insurance_companies')->cascadeOnDelete();
 
-            $table->string('offer_name'); // Базовий, Комфорт+, Преміум
+            $table->string('offer_name'); 
             $table->decimal('price', 10, 2)->unsigned();
             $table->decimal('coverage_amount', 14, 2)->unsigned();
             $table->unsignedSmallInteger('duration_months')->default(12);

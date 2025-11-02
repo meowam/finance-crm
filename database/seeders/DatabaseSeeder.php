@@ -17,7 +17,6 @@ class DatabaseSeeder extends Seeder
             ClientSeeder::class,
             ClientContactSeeder::class,
             PolicySeeder::class,
-            PolicyPaymentSeeder::class,
             ClaimSeeder::class,
             // ActivitySeeder::class,
         ]);

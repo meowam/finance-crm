@@ -6,12 +6,9 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
+  
     public function up(): void
     {
-        // ---- Претензії (страхові випадки) ----
         Schema::create('claims', function (Blueprint $table) {
             $table->id();
             $table->string('claim_number', 64)->unique();
@@ -33,9 +30,7 @@ return new class extends Migration
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
+
     public function down(): void
     {
         Schema::dropIfExists('claims');

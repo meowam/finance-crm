@@ -20,6 +20,10 @@ class InsuranceProductResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    protected static ?string $navigationLabel  = 'Підвиди категорій';
+    protected static ?string $modelLabel       = 'Страхові продукти';
+    protected static ?string $pluralModelLabel = 'Страхові продукти';
+
     public static function form(Schema $schema): Schema
     {
         return InsuranceProductForm::configure($schema);

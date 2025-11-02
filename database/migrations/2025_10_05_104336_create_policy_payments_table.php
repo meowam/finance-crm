@@ -15,7 +15,7 @@ return new class extends Migration
             $table->date('due_date');
             $table->timestamp('paid_at')->nullable();
             $table->decimal('amount', 12, 2)->unsigned();
-            $table->string('status', 32)->default('заплановано')->index();
+            $table->string('status', 32)->default('scheduled')->index();
             $table->string('method', 32)->nullable();
             $table->string('transaction_reference')->nullable();
             $table->text('notes')->nullable();
