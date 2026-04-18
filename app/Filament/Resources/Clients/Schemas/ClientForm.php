@@ -63,7 +63,6 @@ class ClientForm
                     ->minLength(2)
                     ->maxLength(50)
                     ->rules(["regex:/^[\p{L}’'\- ]+$/u"])
-                    ->default('Олена')
                     ->validationMessages([
                         'required' => "Поле «Ім'я» є обов'язковим.",
                         'min'      => "Ім'я повинно містити щонайменше 2 символи.",
@@ -77,7 +76,6 @@ class ClientForm
                     ->minLength(3)
                     ->maxLength(50)
                     ->rules(["regex:/^[\p{L}’'\- ]+$/u"])
-                    ->default('Коваль')
                     ->validationMessages([
                         'required' => 'Поле «Прізвище» є обовʼязковим.',
                         'min'      => 'Прізвище повинно містити щонайменше 3 символи.',
@@ -101,7 +99,6 @@ class ClientForm
                     ->label('Назва компанії')
                     ->nullable()
                     ->rules(['nullable', 'required_if:type,company', 'string', 'max:150'])
-                    ->default('ТОВ «Ромашка»')
                     ->validationMessages([
                         'required_if' => 'Вкажіть назву компанії.',
                         'max'         => 'Назва компанії повинна містити не більше 150 символів.',
@@ -112,7 +109,6 @@ class ClientForm
                     ->email()
                     ->required()
                     ->rules(['email:rfc,dns'])
-                    ->default('test@gmail.com')
                     ->validationMessages([
                         'required' => 'Вкажіть електронну пошту.',
                         'email'    => 'Електронна пошта повинна бути у коректному форматі. Приклад: manager@company.com',
@@ -124,7 +120,6 @@ class ClientForm
                     ->placeholder('+380671234567')
                     ->required()
                     ->rules(["regex:/^\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\d{7}$/"])
-                    ->default('+380671234567')
                     ->validationMessages([
                         'required' => 'Вкажіть номер телефону.',
                         'regex'    => 'Телефон повинен бути у форматі +380XXXXXXXXX з коректним кодом оператора. Приклад: +380671234567.',
@@ -135,7 +130,6 @@ class ClientForm
                     ->placeholder('AA123456')
                     ->required()
                     ->rules(['regex:/^[A-Z]{2}\d{6}$/'])
-                    ->default('AA123456')
                     ->validationMessages([
                         'required' => 'Вкажіть номер документа.',
                         'regex'    => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр (приклад: KB905423).',
@@ -146,7 +140,6 @@ class ClientForm
                     ->placeholder('6519864773')
                     ->required()
                     ->rules(['regex:/^\d{10}$/'])
-                    ->default('1234567890')
                     ->validationMessages([
                         'required' => 'Вкажіть ІПН / ЄДРПОУ.',
                         'regex'    => 'ІПН / ЄДРПОУ повинен містити рівно 10 цифр. Приклад: 6519864773.',
@@ -165,7 +158,6 @@ class ClientForm
                         $min = Carbon::now()->subYears(73)->toDateString();
                         return ["after_or_equal:$min", "before_or_equal:$max"];
                     })
-                    ->default(Carbon::now()->subYears(30)->toDateString())
                     ->validationMessages([
                         'required'        => 'Вкажіть дату народження.',
                         'date'            => 'Дата народження повинна бути у форматі дд.мм.рррр (приклад: 31.10.1995).',
@@ -205,7 +197,6 @@ class ClientForm
                     ->required()
                     ->maxLength(255)
                     ->rules(['string', 'max:255'])
-                    ->default('вул. Хрещатик, 1, кв. 10')
                     ->validationMessages([
                         'required' => 'Вкажіть адресу.',
                         'max'      => 'Адреса повинна містити не більше 255 символів.',
@@ -257,7 +248,6 @@ class ClientForm
                     ->nullable()
                     ->maxLength(2000)
                     ->rules(['nullable', 'string', 'max:2000'])
-                    ->default('Тестова нотатка')
                     ->validationMessages([
                         'max' => 'Нотатки повинні містити не більше 2000 символів.',
                     ]),
