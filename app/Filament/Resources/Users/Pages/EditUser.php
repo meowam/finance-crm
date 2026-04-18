@@ -1,10 +1,11 @@
 <?php
 
-namespace App\Filament\Resources\Users\UserResource\Pages;
+namespace App\Filament\Resources\Users\Pages;
 
 use App\Filament\Resources\Users\UserResource;
-use App\Filament\Resources\Clients\ClientResource;
+use App\Models\User;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
 
 class EditUser extends EditRecord
 {
@@ -15,18 +16,45 @@ class EditUser extends EditRecord
         return 'Користувач';
     }
 
+    protected function authorizeAccess(): void
+    {
+        parent::authorizeAccess();
+
+        /** @var User|null $authUser */
+        $authUser = Auth::user();
+
+        abort_unless($authUser instanceof User, 403);
+        abort_if($authUser->isManager(), 403);
+
+        /** @var User $record */
+        $record = $this->record;
+
+        if ($authUser->isSupervisor()) {
+            abort_if($record->role !== 'manager', 403);
+        }
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::user();
+
+        abort_unless($authUser instanceof User, 403);
+
+        if ($authUser->isSupervisor()) {
+            unset($data['role']);
+        }
+
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         return [];
     }
 
-    protected function getFormActions(): array
+    protected function getRedirectUrl(): string
     {
-        return [];
-    }
-
-    protected function getIndexUrl(): string
-    {
-        return ClientResource::getUrl('index');
+        return static::getResource()::getUrl('index');
     }
 }

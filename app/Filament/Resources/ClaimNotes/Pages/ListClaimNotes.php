@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\ClaimNotes\Pages;
 
 use App\Filament\Resources\ClaimNotes\ClaimNoteResource;
-use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
 
 class ListClaimNotes extends ListRecords
@@ -12,8 +11,6 @@ class ListClaimNotes extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        return [
-        
-        ];
+        return [];
     }
 }

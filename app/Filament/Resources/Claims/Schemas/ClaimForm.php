@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Resources\Claims\Schemas;
 
 use App\Models\User;
@@ -44,7 +45,16 @@ class ClaimForm
                     ->relationship(
                         name: 'policy',
                         titleAttribute: 'policy_number',
-                        modifyQueryUsing: fn($query) => $query->where('status', 'active') 
+                        modifyQueryUsing: function ($query) {
+                            /** @var User|null $user */
+                            $user = Auth::user();
+
+                            $query->where('status', 'active');
+
+                            if ($user instanceof User && $user->isManager()) {
+                                $query->where('agent_id', $user->id);
+                            }
+                        }
                     )
                     ->searchable()
                     ->preload()
@@ -63,14 +73,14 @@ class ClaimForm
                     ->afterStateHydrated(function (TextInput $component, $state, $record) {
                         $name = $record
                             ? optional($record->reportedBy)->name
-                            : optional(Auth::user())->name;     
+                            : optional(Auth::user())->name;
                         $component->state($name);
                     })
-                    ->default(fn() => optional(Auth::user())->name)
+                    ->default(fn () => optional(Auth::user())->name)
                     ->columnSpan(1),
 
                 Hidden::make('reported_by_id')
-                    ->default(fn() => Auth::id())
+                    ->default(fn () => Auth::id())
                     ->dehydrated(true)
                     ->rules(['exists:users,id']),
 
@@ -101,8 +111,8 @@ class ClaimForm
                     ->timezone(null)
                     ->closeOnDateSelection()
                     ->required()
-                    ->minDate(fn() => now()->subYears(5)->startOfDay())
-                    ->maxDate(fn() => now()->endOfDay())
+                    ->minDate(fn () => now()->subYears(5)->startOfDay())
+                    ->maxDate(fn () => now()->endOfDay())
                     ->rules(function () {
                         $max = now()->toDateString();
                         $min = now()->subYears(5)->toDateString();
@@ -164,8 +174,8 @@ class ClaimForm
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
                         $set('amount_claimed', $clean);
                     })
-                    ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
-                    ->dehydrateStateUsing(fn($state) => $state !== null ? str_replace(',', '.', $state) : $state)
+                    ->rules(['regex:/^\\d+(?:[.,]\\d{0,2})?$/'])
+                    ->dehydrateStateUsing(fn ($state) => $state !== null ? str_replace(',', '.', $state) : $state)
                     ->columnSpan(1)
                     ->validationMessages([
                         'required' => 'Вкажіть заявлену суму.',
@@ -187,8 +197,8 @@ class ClaimForm
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
                         $set('amount_reserve', $clean);
                     })
-                    ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
-                    ->dehydrateStateUsing(fn($state) => $state !== null ? str_replace(',', '.', $state) : $state)
+                    ->rules(['regex:/^\\d+(?:[.,]\\d{0,2})?$/'])
+                    ->dehydrateStateUsing(fn ($state) => $state !== null ? str_replace(',', '.', $state) : $state)
                     ->columnSpan(1)
                     ->validationMessages([
                         'regex' => 'Допустимі лише цифри, кома або крапка (до 2 знаків після).',
@@ -208,8 +218,8 @@ class ClaimForm
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
                         $set('amount_paid', $clean);
                     })
-                    ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
-                    ->dehydrateStateUsing(fn($state) => $state !== null ? str_replace(',', '.', $state) : $state)
+                    ->rules(['regex:/^\\d+(?:[.,]\\d{0,2})?$/'])
+                    ->dehydrateStateUsing(fn ($state) => $state !== null ? str_replace(',', '.', $state) : $state)
                     ->hiddenOn(CreateRecord::class)
                     ->columnSpan(1)
                     ->validationMessages([
@@ -241,14 +251,15 @@ class ClaimForm
                             ->label('Менеджер')
                             ->readOnly()
                             ->dehydrated(false)
-                            ->default(fn() => optional(User::find(Auth::id()))?->name)
+                            ->default(fn () => optional(User::find(Auth::id()))?->name)
                             ->afterStateHydrated(function ($state, callable $set, $record) {
                                 if ($record && method_exists($record, 'user')) {
                                     $set('user_name', optional($record->user)->name);
                                 }
                             }),
+
                         Hidden::make('user_id')
-                            ->default(fn() => Auth::id())
+                            ->default(fn () => Auth::id())
                             ->dehydrated(true)
                             ->rules(['required', 'exists:users,id'])
                             ->validationMessages([

@@ -3,9 +3,10 @@
 namespace App\Filament\Resources\Clients\Pages;
 
 use App\Filament\Resources\Clients\ClientResource;
-use App\Filament\Resources\Policies\PolicyResource; 
-use Filament\Resources\Pages\CreateRecord;
+use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Facades\Auth;
 
 class CreateClient extends CreateRecord
 {
@@ -30,6 +31,22 @@ class CreateClient extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return PolicyResource::getUrl('index');
+        return static::getResource()::getUrl('index');
+    }
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if ($user instanceof User && $user->isManager()) {
+            $data['assigned_user_id'] = $user->id;
+        }
+
+        if (blank($data['status'] ?? null)) {
+            $data['status'] = 'lead';
+        }
+
+        return $data;
     }
 }

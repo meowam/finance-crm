@@ -1,15 +1,19 @@
 <?php
+
 namespace App\Filament\Resources\PolicyPayments\Pages;
 
 use App\Filament\Resources\PolicyPayments\PolicyPaymentResource;
+use App\Models\User;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
 
 class EditPolicyPayment extends EditRecord
 {
     protected static string $resource = PolicyPaymentResource::class;
-    protected static ?string $title   = 'Редагувати оплату полісу';
+
+    protected static ?string $title = 'Редагувати оплату полісу';
 
     protected function isLocked(): bool
     {
@@ -31,6 +35,22 @@ class EditPolicyPayment extends EditRecord
             ->send();
     }
 
+    protected function authorizeAccess(): void
+    {
+        parent::authorizeAccess();
+
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (
+            $user instanceof User &&
+            $user->isManager() &&
+            (int) optional($this->record->policy)->agent_id !== (int) $user->id
+        ) {
+            abort(403);
+        }
+    }
+
     public function mount($record): void
     {
         parent::mount($record);
@@ -43,15 +63,18 @@ class EditPolicyPayment extends EditRecord
     public function updated($name, $value): void
     {
         if ($this->isLocked()) {
-            $this->notifyLock(); 
+            $this->notifyLock();
         }
     }
 
     protected function getHeaderActions(): array
     {
+        /** @var User|null $user */
+        $user = Auth::user();
+
         return [
             DeleteAction::make()
-                ->visible(fn() => ! $this->isLocked()),
+                ->visible(fn () => ! $this->isLocked() && $user instanceof User && ! $user->isManager()),
         ];
     }
 
@@ -66,6 +89,17 @@ class EditPolicyPayment extends EditRecord
     {
         if ($this->isLocked()) {
             abort(403, 'Запис заблоковано для редагування.');
+        }
+
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if ($user instanceof User && $user->isManager()) {
+            $policy = $this->record->policy;
+
+            if (! $policy || (int) $policy->agent_id !== (int) $user->id) {
+                abort(403);
+            }
         }
 
         if (($data['status'] ?? null) === 'paid' && empty($data['paid_at'])) {

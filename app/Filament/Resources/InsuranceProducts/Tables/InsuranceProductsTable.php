@@ -1,12 +1,15 @@
 <?php
+
 namespace App\Filament\Resources\InsuranceProducts\Tables;
 
+use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class InsuranceProductsTable
 {
@@ -51,22 +54,35 @@ class InsuranceProductsTable
 
                 TextColumn::make('created_at')
                     ->label('Створено')
-                    ->dateTime('d.m.Y H:i')  
+                    ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('updated_at')
                     ->label('Оновлено')
-                    ->dateTime('d.m.Y H:i') 
+                    ->dateTime('d.m.Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-
             ])
             ->recordActions([
-                EditAction::make()->label('Змінити'),
+                EditAction::make()
+                    ->label('Змінити')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make()->label('Видалити вибрані'),
+                DeleteBulkAction::make()
+                    ->label('Видалити вибрані')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ]);
     }
 }

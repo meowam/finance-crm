@@ -1,10 +1,13 @@
 <?php
+
 namespace App\Filament\Resources\InsuranceCompanies\Tables;
 
+use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class InsuranceCompaniesTable
 {
@@ -26,31 +29,34 @@ class InsuranceCompaniesTable
                 TextColumn::make('country')
                     ->label('Країна')
                     ->searchable()
-                    ->sortable()->toggleable(),
+                    ->sortable()
+                    ->toggleable(),
 
                 TextColumn::make('contact_email')
                     ->label('Ел. пошта')
-                    ->url(fn($record) => $record->contact_email ? 'mailto:' . $record->contact_email : null)
+                    ->url(fn ($record) => $record->contact_email ? 'mailto:' . $record->contact_email : null)
                     ->openUrlInNewTab(false)
                     ->searchable(),
 
                 TextColumn::make('contact_phone')
                     ->label('Телефон')
-                    ->url(fn($record) => $record->contact_phone ? 'tel:' . preg_replace('/\s+/', '', $record->contact_phone) : null)
+                    ->url(fn ($record) => $record->contact_phone ? 'tel:' . preg_replace('/\s+/', '', $record->contact_phone) : null)
                     ->openUrlInNewTab(false)
-                    ->searchable()->toggleable(),
+                    ->searchable()
+                    ->toggleable(),
 
                 TextColumn::make('website')
                     ->label('Вебсайт')
-                    ->formatStateUsing(fn($state) => $state ? preg_replace('#^https?://#i', '', $state) : null)
-                    ->url(fn($record) => $record->website
-                            ? (preg_match('#^https?://#i', $record->website) ? $record->website : 'https://' . $record->website)
-                            : null)
+                    ->formatStateUsing(fn ($state) => $state ? preg_replace('#^https?://#i', '', $state) : null)
+                    ->url(fn ($record) => $record->website
+                        ? (preg_match('#^https?://#i', $record->website) ? $record->website : 'https://' . $record->website)
+                        : null)
                     ->openUrlInNewTab()
-                    ->searchable()->toggleable(),
+                    ->searchable()
+                    ->toggleable(),
 
                 TextColumn::make('logo_path')
-                    ->label('Логотип') 
+                    ->label('Логотип')
                     ->sortable()
                     ->toggleable(),
 
@@ -67,10 +73,24 @@ class InsuranceCompaniesTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
-                EditAction::make()->label('Змінити'),
+                EditAction::make()
+                    ->label('Змінити')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make()->label('Видалити вибрані'),
+                DeleteBulkAction::make()
+                    ->label('Видалити вибрані')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ]);
     }
 }

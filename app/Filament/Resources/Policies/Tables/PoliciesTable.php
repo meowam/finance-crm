@@ -1,8 +1,10 @@
 <?php
+
 namespace App\Filament\Resources\Policies\Tables;
 
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Policy;
+use App\Models\User;
 use BackedEnum;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -10,19 +12,28 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class PoliciesTable
 {
     protected static function str($v): string
-    {return $v instanceof BackedEnum ? (string) $v->value : (string) $v;}
+    {
+        return $v instanceof BackedEnum ? (string) $v->value : (string) $v;
+    }
+
     protected static function low($v): string
-    {return mb_strtolower(self::str($v));}
+    {
+        return mb_strtolower(self::str($v));
+    }
 
     public static function configure(Table $table): Table
     {
         return $table
             ->modifyQueryUsing(function ($query) {
+                /** @var User|null $user */
+                $user = Auth::user();
+
                 $query
                     ->with([
                         'client:id,primary_email',
@@ -37,19 +48,22 @@ class PoliciesTable
                             ->orderByDesc('lp.id')
                             ->limit(1),
                     ]);
-            })
 
+                if ($user instanceof User && $user->isManager()) {
+                    $query->where('agent_id', $user->id);
+                }
+            })
             ->defaultPaginationPageOption(25)
             ->columns([
-
                 TextColumn::make('policy_number')
                     ->label('Номер полісу')
                     ->searchable()
                     ->sortable(),
+
                 TextColumn::make('latest_payment_status')
                     ->label('Оплата')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match (self::low($state)) {
+                    ->formatStateUsing(fn ($state) => match (self::low($state)) {
                         'paid'      => 'Сплачено',
                         'scheduled' => 'Очікує',
                         'overdue'   => 'Прострочено',
@@ -58,7 +72,7 @@ class PoliciesTable
                         ''          => '—',
                         default     => self::str($state),
                     })
-                    ->color(fn($state) => match (self::low($state)) {
+                    ->color(fn ($state) => match (self::low($state)) {
                         'paid'      => 'success',
                         'scheduled' => 'warning',
                         'overdue'   => 'danger',
@@ -68,9 +82,10 @@ class PoliciesTable
                         default     => 'gray',
                     })
                     ->toggleable(),
+
                 TextColumn::make('client.primary_email')
                     ->label('Email клієнта')
-                    ->url(fn($record) => url("/admin/clients/{$record->client_id}/edit"))
+                    ->url(fn ($record) => url("/admin/clients/{$record->client_id}/edit"))
                     ->openUrlInNewTab()
                     ->searchable(),
 
@@ -82,23 +97,29 @@ class PoliciesTable
 
                 TextColumn::make('agent.name')
                     ->label('Менеджер')
-                    ->url(fn(Policy $record) => UserResource::getUrl('edit', ['record' => $record->agent_id]))
+                    ->url(fn (Policy $record) => UserResource::getUrl('edit', ['record' => $record->agent_id]))
                     ->openUrlInNewTab()
                     ->sortable()
-                    ->formatStateUsing(fn($state) => $state ?: '—')
-                    ->toggleable(),
+                    ->formatStateUsing(fn ($state) => $state ?: '—')
+                    ->toggleable()
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return ! ($user instanceof User && $user->isManager());
+                    }),
 
                 TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match (self::low($state)) {
+                    ->formatStateUsing(fn ($state) => match (self::low($state)) {
                         'draft'     => 'чернетка',
                         'active'    => 'активний',
                         'completed' => 'завершено',
                         'canceled'  => 'скасовано',
                         default     => self::str($state),
                     })
-                    ->color(fn($state) => match (self::low($state)) {
+                    ->color(fn ($state) => match (self::low($state)) {
                         'draft'     => 'warning',
                         'active'    => 'success',
                         'completed' => 'gray',
@@ -139,7 +160,7 @@ class PoliciesTable
 
                 TextColumn::make('payment_frequency')
                     ->label('Періодичність')
-                    ->formatStateUsing(fn($state) => match (self::str($state)) {
+                    ->formatStateUsing(fn ($state) => match (self::str($state)) {
                         'once'      => 'разово',
                         'monthly'   => 'щомісяця',
                         'quarterly' => 'щокварталу',
@@ -151,7 +172,7 @@ class PoliciesTable
 
                 TextColumn::make('commission_rate')
                     ->label('Комісія')
-                    ->formatStateUsing(fn($state) => number_format((float) $state, 2))
+                    ->formatStateUsing(fn ($state) => number_format((float) $state, 2))
                     ->suffix('%')
                     ->sortable(),
 
@@ -176,6 +197,7 @@ class PoliciesTable
                         'completed' => 'завершено',
                         'canceled'  => 'скасовано',
                     ]),
+
                 SelectFilter::make('latest_payment_status')
                     ->label('Оплата')
                     ->options([
@@ -194,6 +216,7 @@ class PoliciesTable
                             ->from('policy_payments as t')
                             ->selectRaw('MAX(t.id)')
                             ->whereColumn('t.policy_id', 'policies.id');
+
                         return $query->whereIn('id', function (Builder $q) use ($value, $latestSub) {
                             $q->from('policies as p2')
                                 ->select('p2.id')
@@ -211,7 +234,14 @@ class PoliciesTable
                 EditAction::make()->label('Змінити'),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make()->label('Видалити вибране'),
+                DeleteBulkAction::make()
+                    ->label('Видалити вибране')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ]);
     }
 }

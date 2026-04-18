@@ -1,18 +1,29 @@
 <?php
+
 namespace App\Filament\Resources\Clients\Tables;
 
 use App\Filament\Resources\Users\UserResource;
+use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class ClientsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                /** @var User|null $user */
+                $user = Auth::user();
+
+                if ($user instanceof User && $user->isManager()) {
+                    $query->where('assigned_user_id', $user->id);
+                }
+            })
             ->columns([
                 TextColumn::make('created_at')
                     ->label('Реєстрація')
@@ -33,6 +44,7 @@ class ClientsTable
                         if ($mid !== '') {
                             $fi = mb_strtoupper(mb_substr($first, 0, 1));
                             $mi = mb_strtoupper(mb_substr($mid, 0, 1));
+
                             return "{$last} {$fi}.{$mi}.";
                         }
 
@@ -52,13 +64,13 @@ class ClientsTable
 
                 TextColumn::make('type')
                     ->label('Тип')
-                    ->formatStateUsing(fn($state) => match ($state) {
+                    ->formatStateUsing(fn ($state) => match ($state) {
                         'company'    => 'Компанія',
                         'individual' => 'Фізична особа',
                         default      => '—',
                     })
                     ->badge()
-                    ->color(fn($state) => match ($state) {
+                    ->color(fn ($state) => match ($state) {
                         'company'    => 'info',
                         'individual' => 'gray',
                         default      => 'gray',
@@ -69,14 +81,14 @@ class ClientsTable
 
                 TextColumn::make('status')
                     ->label('Статус')
-                    ->formatStateUsing(fn($state) => match ($state) {
+                    ->formatStateUsing(fn ($state) => match ($state) {
                         'active'   => 'Активний',
                         'archived' => 'Архівовано',
                         'lead'     => 'Потенційний',
                         default    => '—',
                     })
                     ->badge()
-                    ->color(fn($state) => match ($state) {
+                    ->color(fn ($state) => match ($state) {
                         'active'   => 'success',
                         'lead'     => 'warning',
                         'archived' => 'gray',
@@ -92,7 +104,7 @@ class ClientsTable
 
                 TextColumn::make('primary_email')
                     ->label('Email')
-                    ->url(fn($record) => "mailto:{$record->primary_email}")
+                    ->url(fn ($record) => "mailto:{$record->primary_email}")
                     ->toggleable()
                     ->searchable(),
 
@@ -108,15 +120,15 @@ class ClientsTable
 
                 TextColumn::make('source')
                     ->label('Джерело')
-                    ->formatStateUsing(fn($state) => match ($state) {
+                    ->formatStateUsing(fn ($state) => match ($state) {
                         'office'         => 'Офіс',
                         'online'         => 'Онлайн',
                         'recommendation' => 'Рекомендація',
-                        null, '' => '—',
+                        null, ''         => '—',
                         default          => (string) $state,
                     })
                     ->badge()
-                    ->color(fn($state) => match ($state) {
+                    ->color(fn ($state) => match ($state) {
                         'office'         => 'info',
                         'online'         => 'success',
                         'recommendation' => 'warning',
@@ -128,23 +140,34 @@ class ClientsTable
                 TextColumn::make('assignedUser.name')
                     ->label('Менеджер')
                     ->placeholder('—')
-                    ->url(fn($record) => $record->assigned_user_id
-                            ? UserResource::getUrl('edit', ['record' => $record->assigned_user_id])
-                            : null
-                    )
+                    ->url(fn ($record) => $record->assigned_user_id
+                        ? UserResource::getUrl('edit', ['record' => $record->assigned_user_id])
+                        : null)
                     ->openUrlInNewTab()
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable()
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return ! ($user instanceof User && $user->isManager());
+                    }),
             ])
             ->defaultSort('created_at', 'desc')
             ->defaultPaginationPageOption(25)
-
             ->filters([])
             ->recordActions([
                 EditAction::make()->label('Редагувати'),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make()->label('Видалити обране'),
+                DeleteBulkAction::make()
+                    ->label('Видалити обране')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ]);
     }
 }

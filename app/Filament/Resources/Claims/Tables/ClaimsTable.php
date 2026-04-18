@@ -1,33 +1,45 @@
 <?php
+
 namespace App\Filament\Resources\Claims\Tables;
 
 use App\Filament\Resources\Policies\PolicyResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Claim;
+use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class ClaimsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                /** @var User|null $user */
+                $user = Auth::user();
+
+                if ($user instanceof User && $user->isManager()) {
+                    $query->where('reported_by_id', $user->id);
+                }
+            })
             ->defaultSort('reported_at', 'desc')
             ->defaultPaginationPageOption(25)
-            ->columns([TextColumn::make('status')
+            ->columns([
+                TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
-                    ->color(fn(string $state) => match ($state) {
+                    ->color(fn (string $state) => match ($state) {
                         'на розгляді' => 'warning',
                         'виплачено'   => 'success',
                         'схвалено'    => 'info',
                         'відхилено'   => 'danger',
                         default       => 'gray',
                     })
-                    ->sortable(query: fn(Builder $query, string $direction) =>
+                    ->sortable(query: fn (Builder $query, string $direction) =>
                         $query->orderByRaw("CASE status WHEN 'на розгляді' THEN 1 WHEN 'схвалено' THEN 2 WHEN 'відхилено' THEN 3 WHEN 'виплачено' THEN 4 ELSE 5 END $direction"))
                     ->searchable(),
 
@@ -37,7 +49,7 @@ class ClaimsTable
 
                 TextColumn::make('policy.policy_number')
                     ->label('Поліс')
-                    ->url(fn(Claim $record) => PolicyResource::getUrl('edit', ['record' => $record->policy_id]))
+                    ->url(fn (Claim $record) => PolicyResource::getUrl('edit', ['record' => $record->policy_id]))
                     ->openUrlInNewTab()
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -64,10 +76,16 @@ class ClaimsTable
 
                 TextColumn::make('reportedBy.name')
                     ->label('Менеджер')
-                    ->url(fn(Claim $record) => UserResource::getUrl('edit', ['record' => $record->reported_by_id]))
+                    ->url(fn (Claim $record) => UserResource::getUrl('edit', ['record' => $record->reported_by_id]))
                     ->openUrlInNewTab()
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return ! ($user instanceof User && $user->isManager());
+                    }),
 
                 TextColumn::make('amount_claimed')
                     ->label('Заявлена сума')
@@ -101,7 +119,14 @@ class ClaimsTable
                 EditAction::make()->label('Редагувати'),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make()->label('Видалити'),
+                DeleteBulkAction::make()
+                    ->label('Видалити')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ]);
     }
 }

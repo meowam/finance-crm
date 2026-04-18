@@ -1,103 +1,79 @@
 <?php
+
 namespace App\Filament\Resources\Users;
 
+use App\Filament\Resources\Users\Pages\CreateUser;
+use App\Filament\Resources\Users\Pages\EditUser;
+use App\Filament\Resources\Users\Pages\ListUsers;
+use App\Filament\Resources\Users\Schemas\UserForm;
+use App\Filament\Resources\Users\Tables\UsersTable;
 use App\Models\User;
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static bool $shouldRegisterNavigation = false;
+    public static function shouldRegisterNavigation(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user instanceof User && ($user->isAdmin() || $user->isSupervisor());
+    }
 
     public static function getLabel(): string
-    {return 'Користувач';}
+    {
+        return 'Користувач';
+    }
+
     public static function getPluralLabel(): string
-    {return 'Користувачі';}
+    {
+        return 'Користувачі';
+    }
+
     public static function getNavigationLabel(): string
-    {return 'Користувачі';}
+    {
+        return 'Користувачі';
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var User|null $authUser */
+        $authUser = Auth::user();
+
+        abort_unless($authUser instanceof User, 403);
+        abort_if($authUser->isManager(), 403);
+
+        $query = parent::getEloquentQuery();
+
+        if ($authUser->isSupervisor()) {
+            $query->where('role', 'manager');
+        }
+
+        return $query;
+    }
 
     public static function form(Schema $schema): Schema
     {
-        return $schema
-            ->columns(2)
-            ->components([
-                TextInput::make('name')
-                    ->label("Ім'я")
-                    ->disabled()
-                    ->dehydrated(false),
-
-                TextInput::make('email')
-                    ->label('Email')
-                    ->disabled()
-                    ->dehydrated(false),
-
-                TextInput::make('role')
-                    ->label('Роль')->default('Менеджер')
-                    ->disabled()->columnSpan(2)
-                    ->dehydrated(false)
-                    ->afterStateHydrated(function (TextInput $component, $state) {
-                        $component->state(match ($state) {
-                            'admin'      => 'Адміністратор',
-                            'supervisor' => 'Керівник',
-                            'manager'    => 'Менеджер',
-                            default      => (string) $state, 
-                        });
-                    }),
-
-                // Select::make('role')
-                //     ->label('Роль')
-                //     ->options([
-                //         'admin'      => 'Адміністратор',
-                //         'supervisor' => 'Керівник',
-                //         'manager'    => 'Менеджер',
-                //     ])
-                //     ->disabled()
-                //     ->dehydrated(false),
-
-                Toggle::make('is_active')
-                    ->label('Активний')
-                    ->disabled()
-                    ->dehydrated(false),
-
-                DateTimePicker::make('last_login_at')
-                    ->label('Останній вхід')
-                    ->displayFormat('d.m.Y H:i')
-                    ->seconds(false)
-                    ->disabled()->columnSpan(2)
-                    ->dehydrated(false),
-
-                DateTimePicker::make('created_at')
-                    ->label('Створено')
-                    ->displayFormat('d.m.Y H:i')
-                    ->seconds(false)
-                    ->disabled()
-                    ->dehydrated(false),
-
-                DateTimePicker::make('updated_at')
-                    ->label('Оновлено')
-                    ->displayFormat('d.m.Y H:i')
-                    ->seconds(false)
-                    ->disabled()
-                    ->dehydrated(false),
-            ]);
+        return UserForm::configure($schema);
     }
 
     public static function table(Table $table): Table
     {
-        return $table->columns([]);
+        return UsersTable::configure($table);
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => UserResource\Pages\ListUsers::route('/'),
-            'edit'  => UserResource\Pages\EditUser::route('/{record}'),
+            'index' => ListUsers::route('/'),
+            'create' => CreateUser::route('/create'),
+            'edit' => EditUser::route('/{record}'),
         ];
     }
 }

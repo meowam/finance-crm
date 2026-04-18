@@ -1,19 +1,33 @@
 <?php
+
 namespace App\Filament\Resources\ClaimNotes\Tables;
 
 use App\Filament\Resources\Claims\ClaimResource;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Grouping\Group;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class ClaimNotesTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                /** @var User|null $user */
+                $user = Auth::user();
+
+                if ($user instanceof User && $user->isManager()) {
+                    $query->whereHas('claim', function (Builder $claimQuery) use ($user) {
+                        $claimQuery->where('reported_by_id', $user->id);
+                    });
+                }
+            })
             ->defaultSort('created_at', 'desc')
             ->defaultPaginationPageOption(25)
             ->groups([
@@ -36,7 +50,13 @@ class ClaimNotesTable
                     ->url(fn ($record) => UserResource::getUrl('edit', ['record' => $record->user_id]))
                     ->openUrlInNewTab()
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return ! ($user instanceof User && $user->isManager());
+                    }),
 
                 TextColumn::make('visibility')
                     ->label('Видимість')
@@ -46,8 +66,6 @@ class ClaimNotesTable
                         'зовнішня'  => 'info',
                         default     => 'gray',
                     })
-                    ->url(fn ($record) => ClaimResource::getUrl('edit', ['record' => $record->claim_id]))
-                    ->openUrlInNewTab()
                     ->sortable()
                     ->searchable(),
 
@@ -55,15 +73,11 @@ class ClaimNotesTable
                     ->label('Нотатка')
                     ->wrap()
                     ->limit(200)
-                    ->url(fn ($record) => ClaimResource::getUrl('edit', ['record' => $record->claim_id]))
-                    ->openUrlInNewTab()
                     ->searchable(),
 
                 TextColumn::make('created_at')
                     ->label('Створено')
                     ->dateTime('d.m.Y H:i')
-                    ->url(fn ($record) => ClaimResource::getUrl('edit', ['record' => $record->claim_id]))
-                    ->openUrlInNewTab()
                     ->toggleable(),
 
                 TextColumn::make('updated_at')
@@ -73,12 +87,17 @@ class ClaimNotesTable
             ])
             ->recordActions([
                 EditAction::make()
-                    ->label(false)
-                    ->url(fn ($record) => ClaimResource::getUrl('edit', ['record' => $record->claim_id]))
-                    ->icon('heroicon-m-pencil-square'),
+                    ->label('Редагувати'),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make(),
+                DeleteBulkAction::make()
+                    ->label('Видалити')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ]);
     }
 }

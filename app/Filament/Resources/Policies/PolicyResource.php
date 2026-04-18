@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Resources\Policies;
 
 use App\Filament\Resources\Policies\Pages\CreatePolicy;
@@ -7,11 +8,14 @@ use App\Filament\Resources\Policies\Pages\ListPolicies;
 use App\Filament\Resources\Policies\Schemas\PolicyForm;
 use App\Filament\Resources\Policies\Tables\PoliciesTable;
 use App\Models\Policy;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class PolicyResource extends Resource
 {
@@ -20,7 +24,7 @@ class PolicyResource extends Resource
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
     protected static ?string $navigationLabel  = 'Поліси';
-    protected static ?string $modelLabel       = 'Поліси';
+    protected static ?string $modelLabel       = 'Поліс';
     protected static ?string $pluralModelLabel = 'Поліси';
 
     public static function form(Schema $schema): Schema
@@ -38,6 +42,28 @@ class PolicyResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        $query = parent::getEloquentQuery();
+
+        if ($user instanceof User && $user->isManager()) {
+            $query->where('agent_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user instanceof User;
     }
 
     public static function getPages(): array

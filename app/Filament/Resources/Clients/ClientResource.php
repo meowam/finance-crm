@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Resources\Clients;
 
 use App\Filament\Resources\Clients\Pages\CreateClient;
@@ -7,11 +8,14 @@ use App\Filament\Resources\Clients\Pages\ListClients;
 use App\Filament\Resources\Clients\Schemas\ClientForm;
 use App\Filament\Resources\Clients\Tables\ClientsTable;
 use App\Models\Client;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class ClientResource extends Resource
 {
@@ -49,6 +53,28 @@ class ClientResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        $query = parent::getEloquentQuery();
+
+        if ($user instanceof User && $user->isManager()) {
+            $query->where('assigned_user_id', $user->id);
+        }
+
+        return $query;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user instanceof User;
     }
 
     public static function getPages(): array

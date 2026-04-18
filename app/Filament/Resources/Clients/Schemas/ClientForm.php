@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Resources\Clients\Schemas;
 
 use App\Models\User;
@@ -10,6 +11,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class ClientForm
@@ -62,7 +64,7 @@ class ClientForm
                     ->required()
                     ->minLength(2)
                     ->maxLength(50)
-                    ->rules(["regex:/^[\p{L}’'\- ]+$/u"])
+                    ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
                         'required' => "Поле «Ім'я» є обов'язковим.",
                         'min'      => "Ім'я повинно містити щонайменше 2 символи.",
@@ -75,7 +77,7 @@ class ClientForm
                     ->required()
                     ->minLength(3)
                     ->maxLength(50)
-                    ->rules(["regex:/^[\p{L}’'\- ]+$/u"])
+                    ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
                         'required' => 'Поле «Прізвище» є обовʼязковим.',
                         'min'      => 'Прізвище повинно містити щонайменше 3 символи.',
@@ -88,7 +90,7 @@ class ClientForm
                     ->nullable()
                     ->minLength(2)
                     ->maxLength(50)
-                    ->rules(['nullable', "regex:/^[\p{L}’'\- ]+$/u"])
+                    ->rules(['nullable', "regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
                         'min'   => 'По батькові повинно містити щонайменше 2 символи.',
                         'max'   => 'По батькові повинно містити не більше 50 символів.',
@@ -119,7 +121,7 @@ class ClientForm
                     ->tel()
                     ->placeholder('+380671234567')
                     ->required()
-                    ->rules(["regex:/^\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\d{7}$/"])
+                    ->rules(["regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/"])
                     ->validationMessages([
                         'required' => 'Вкажіть номер телефону.',
                         'regex'    => 'Телефон повинен бути у форматі +380XXXXXXXXX з коректним кодом оператора. Приклад: +380671234567.',
@@ -129,7 +131,7 @@ class ClientForm
                     ->label('Номер документа')
                     ->placeholder('AA123456')
                     ->required()
-                    ->rules(['regex:/^[A-Z]{2}\d{6}$/'])
+                    ->rules(['regex:/^[A-Z]{2}\\d{6}$/'])
                     ->validationMessages([
                         'required' => 'Вкажіть номер документа.',
                         'regex'    => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр (приклад: KB905423).',
@@ -139,7 +141,7 @@ class ClientForm
                     ->label('ІПН / ЄДРПОУ')
                     ->placeholder('6519864773')
                     ->required()
-                    ->rules(['regex:/^\d{10}$/'])
+                    ->rules(['regex:/^\\d{10}$/'])
                     ->validationMessages([
                         'required' => 'Вкажіть ІПН / ЄДРПОУ.',
                         'regex'    => 'ІПН / ЄДРПОУ повинен містити рівно 10 цифр. Приклад: 6519864773.',
@@ -156,6 +158,7 @@ class ClientForm
                     ->rules(function () {
                         $max = Carbon::now()->subYears(18)->toDateString();
                         $min = Carbon::now()->subYears(73)->toDateString();
+
                         return ["after_or_equal:$min", "before_or_equal:$max"];
                     })
                     ->validationMessages([
@@ -219,24 +222,50 @@ class ClientForm
 
                 Select::make('assigned_user_id')
                     ->label('Менеджер')
-                    ->options(fn () => User::query()
-                        ->where('is_active', true)
-                        ->whereIn('role', ['manager'])
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                        ->toArray()
-                    )
+                    ->options(function () {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        if ($user instanceof User && $user->isManager()) {
+                            return User::query()
+                                ->whereKey($user->id)
+                                ->pluck('name', 'id')
+                                ->toArray();
+                        }
+
+                        return User::query()
+                            ->where('is_active', true)
+                            ->where('role', 'manager')
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
                     ->searchable()
                     ->preload()
                     ->native(false)
                     ->required()
                     ->rules(['exists:users,id'])
-                    ->default(fn () => User::query()
-                        ->where('is_active', true)
-                        ->whereIn('role', ['manager'])
-                        ->orderBy('name')
-                        ->value('id')
-                    )
+                    ->default(function () {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        if ($user instanceof User && $user->isManager()) {
+                            return $user->id;
+                        }
+
+                        return User::query()
+                            ->where('is_active', true)
+                            ->where('role', 'manager')
+                            ->orderBy('name')
+                            ->value('id');
+                    })
+                    ->disabled(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && $user->isManager();
+                    })
+                    ->dehydrated(true)
                     ->validationMessages([
                         'required' => 'Оберіть менеджера.',
                         'exists'   => 'Обраного менеджера не знайдено.',

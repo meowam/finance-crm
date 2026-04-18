@@ -8,11 +8,13 @@ use App\Filament\Resources\InsuranceCompanies\Pages\ListInsuranceCompanies;
 use App\Filament\Resources\InsuranceCompanies\Schemas\InsuranceCompanyForm;
 use App\Filament\Resources\InsuranceCompanies\Tables\InsuranceCompaniesTable;
 use App\Models\InsuranceCompany;
+use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class InsuranceCompanyResource extends Resource
 {
@@ -20,9 +22,17 @@ class InsuranceCompanyResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
-    protected static ?string $navigationLabel  = 'Страхові компанії';
-    protected static ?string $modelLabel       = 'Компанії страхувань';
-    protected static ?string $pluralModelLabel = 'Компанії страхувань';
+    protected static ?string $navigationLabel = 'Страхові компанії';
+    protected static ?string $modelLabel = 'Компанія страхування';
+    protected static ?string $pluralModelLabel = 'Компанії страхування';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user instanceof User;
+    }
 
     public static function form(Schema $schema): Schema
     {

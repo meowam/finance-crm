@@ -1,12 +1,15 @@
 <?php
+
 namespace App\Filament\Resources\InsuranceOffers\Tables;
 
 use App\Filament\Resources\InsuranceCompanies\InsuranceCompanyResource;
 use App\Filament\Resources\InsuranceProducts\InsuranceProductResource;
+use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\Auth;
 
 class InsuranceOffersTable
 {
@@ -31,7 +34,7 @@ class InsuranceOffersTable
                     ->label('Продукт')
                     ->searchable()
                     ->sortable()
-                    ->url(fn($record) => $record->insurance_product_id
+                    ->url(fn ($record) => $record->insurance_product_id
                         ? InsuranceProductResource::getUrl('edit', ['record' => $record->insurance_product_id])
                         : null)
                     ->openUrlInNewTab(),
@@ -40,7 +43,7 @@ class InsuranceOffersTable
                     ->label('Страхова компанія')
                     ->searchable()
                     ->sortable()
-                    ->url(fn($record) => $record->insurance_company_id
+                    ->url(fn ($record) => $record->insurance_company_id
                         ? InsuranceCompanyResource::getUrl('edit', ['record' => $record->insurance_company_id])
                         : null)
                     ->openUrlInNewTab(),
@@ -53,27 +56,27 @@ class InsuranceOffersTable
                 TextColumn::make('price')
                     ->label('Ціна')
                     ->sortable()
-                    ->formatStateUsing(fn($state) => is_null($state) ? '—' : number_format((float)$state, 2, ',', ' '))
+                    ->formatStateUsing(fn ($state) => is_null($state) ? '—' : number_format((float) $state, 2, ',', ' '))
                     ->suffix(' ₴'),
 
                 TextColumn::make('coverage_amount')
                     ->label('Сума покриття')
                     ->sortable()
-                    ->formatStateUsing(fn($state) => is_null($state) ? '—' : number_format((float)$state, 2, ',', ' '))
+                    ->formatStateUsing(fn ($state) => is_null($state) ? '—' : number_format((float) $state, 2, ',', ' '))
                     ->suffix(' ₴'),
 
                 TextColumn::make('franchise')
                     ->label('Франшиза')
                     ->sortable()
-                    ->formatStateUsing(fn($state) => is_null($state) ? '—' : number_format((float)$state, 2, ',', ' '))
+                    ->formatStateUsing(fn ($state) => is_null($state) ? '—' : number_format((float) $state, 2, ',', ' '))
                     ->suffix(' ₴')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('duration_months')
                     ->label('Тривалість')
                     ->badge()
-                    ->formatStateUsing(fn($state) => $state ? ($state . ' міс.') : '—')
-                    ->color(fn($state) => match ((int) $state) {
+                    ->formatStateUsing(fn ($state) => $state ? ($state . ' міс.') : '—')
+                    ->color(fn ($state) => match ((int) $state) {
                         1  => 'gray',
                         3  => 'info',
                         6  => 'warning',
@@ -95,10 +98,24 @@ class InsuranceOffersTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->recordActions([
-                EditAction::make()->label('Змінити'),
+                EditAction::make()
+                    ->label('Змінити')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make()->label('Видалити вибрані'),
+                DeleteBulkAction::make()
+                    ->label('Видалити вибрані')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    }),
             ]);
     }
 }

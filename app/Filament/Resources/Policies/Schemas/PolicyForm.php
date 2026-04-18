@@ -34,12 +34,19 @@ class PolicyForm
                 Select::make('client_id')
                     ->label('Клієнт (email)')
                     ->placeholder('Оберіть клієнта…')
-                    ->options(fn () =>
-                        Client::query()
+                    ->options(function () {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return Client::query()
+                            ->when(
+                                $user instanceof User && $user->isManager(),
+                                fn ($query) => $query->where('assigned_user_id', $user->id)
+                            )
                             ->orderBy('primary_email')
                             ->pluck('primary_email', 'id')
-                            ->toArray()
-                    )
+                            ->toArray();
+                    })
                     ->searchable()
                     ->preload()
                     ->native(false)
@@ -59,6 +66,7 @@ class PolicyForm
                                 $comp = $o->insuranceCompany?->name ?? 'Компанія';
                                 $dur  = (int) $o->duration_months;
                                 $label = "{$prod} — {$o->offer_name} — {$comp} — {$dur} міс.";
+
                                 return [$o->id => $label];
                             })
                             ->toArray();
@@ -88,6 +96,7 @@ class PolicyForm
                         );
 
                         $rate = (float) ($get('commission_rate') ?? 0);
+
                         if ($offer) {
                             $base = (float) $offer->price * (int) $offer->duration_months;
                             $prem = $base + ($base * ($rate / 100));
@@ -97,13 +106,14 @@ class PolicyForm
                         }
 
                         $eff = $get('effective_date');
+
                         if ($offer && $eff) {
                             $exp = Carbon::parse($eff)->addMonths((int) $offer->duration_months)->format('Y-m-d');
                             $set('expiration_date', $exp);
                         }
                     })
                     ->afterStateHydrated(function ($state, callable $set, $record) {
-                        if (!$record) {
+                        if (! $record) {
                             return;
                         }
                         $offer = $state ? InsuranceOffer::find($state) : null;
@@ -116,26 +126,64 @@ class PolicyForm
 
                 Select::make('agent_id')
                     ->label('Менеджер')
-                    ->options(fn () => User::query()
-                        ->whereKey(Auth::id())
-                        ->pluck('name', 'id')
-                        ->toArray()
-                    )
+                    ->options(function () {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        if ($user instanceof User && $user->isManager()) {
+                            return User::query()
+                                ->whereKey($user->id)
+                                ->pluck('name', 'id')
+                                ->toArray();
+                        }
+
+                        return User::query()
+                            ->where('is_active', true)
+                            ->where('role', 'manager')
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
                     ->default(fn () => Auth::id())
-                    ->disabled()
+                    ->disabled(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && $user->isManager();
+                    })
                     ->dehydrated(true)
                     ->visibleOn(CreateRecord::class)
+                    ->required()
                     ->columnSpan(1),
 
                 Select::make('agent_id')
                     ->label('Менеджер')
-                    ->options(fn ($record) => $record && $record->agent
-                        ? [$record->agent->id => $record->agent->name]
-                        : []
-                    )
-                    ->disabled()
+                    ->options(function ($record) {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        if ($user instanceof User && $user->isManager()) {
+                            return $record && $record->agent
+                                ? [$record->agent->id => $record->agent->name]
+                                : [];
+                        }
+
+                        return User::query()
+                            ->where('is_active', true)
+                            ->where('role', 'manager')
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->disabled(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && $user->isManager();
+                    })
                     ->dehydrated(true)
                     ->visibleOn(EditRecord::class)
+                    ->required()
                     ->columnSpan(1),
 
                 Select::make('status')
@@ -150,8 +198,8 @@ class PolicyForm
                     ->required()
                     ->default('draft')
                     ->rules(['required', 'in:draft,active,completed,canceled'])
-                    ->disabled()       
-                    ->dehydrated(true) 
+                    ->disabled()
+                    ->dehydrated(true)
                     ->reactive()
                     ->afterStateHydrated(function ($state, callable $set, callable $get) {
                         $paymentStatus = $get('payments.0.status') ?? 'draft';
@@ -181,7 +229,7 @@ class PolicyForm
                             $set('expiration_date', $exp);
                         }
                         if ($state) {
-                            $set('payments.0.due_date', Carbon::parse($state)->addDays(rand(5,7))->toDateString());
+                            $set('payments.0.due_date', Carbon::parse($state)->addDays(rand(5, 7))->toDateString());
                         }
                     })
                     ->columnSpan(1),
@@ -243,7 +291,7 @@ class PolicyForm
                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                         $offerId = $get('insurance_offer_id');
                         $offer   = $offerId ? InsuranceOffer::find($offerId) : null;
-                        if (!$offer) {
+                        if (! $offer) {
                             return;
                         }
                         $base = (float) $offer->price * (int) $offer->duration_months;
@@ -333,13 +381,13 @@ class PolicyForm
                             ->default(function (Get $get) {
                                 $eff = $get('../../effective_date');
                                 $base = $eff ? Carbon::parse($eff) : now();
-                                return $base->copy()->addDays(rand(5,7))->toDateString();
+                                return $base->copy()->addDays(rand(5, 7))->toDateString();
                             })
                             ->afterStateHydrated(function ($state, callable $set, Get $get) {
                                 if (blank($state)) {
                                     $eff = $get('../../effective_date');
                                     $base = $eff ? Carbon::parse($eff) : now();
-                                    $set('due_date', $base->copy()->addDays(rand(5,7))->toDateString());
+                                    $set('due_date', $base->copy()->addDays(rand(5, 7))->toDateString());
                                 }
                             })
                             ->columnSpan(1),

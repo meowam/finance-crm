@@ -1,31 +1,50 @@
 <?php
+
 namespace App\Filament\Resources\PolicyPayments\Tables;
 
 use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\Policies\PolicyResource;
+use App\Models\User;
 use BackedEnum;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Auth;
 
 class PolicyPaymentsTable
 {
     protected static function str($v): string
-    {return $v instanceof BackedEnum ? (string) $v->value : (string) $v;}
+    {
+        return $v instanceof BackedEnum ? (string) $v->value : (string) $v;
+    }
+
     protected static function low($v): string
-    {return mb_strtolower(self::str($v));}
+    {
+        return mb_strtolower(self::str($v));
+    }
 
     public static function configure(Table $table): Table
     {
         return $table
+            ->modifyQueryUsing(function (Builder $query) {
+                /** @var User|null $user */
+                $user = Auth::user();
+
+                if ($user instanceof User && $user->isManager()) {
+                    $query->whereHas('policy', function (Builder $policyQuery) use ($user) {
+                        $policyQuery->where('agent_id', $user->id);
+                    });
+                }
+            })
             ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match (self::low($state)) {
+                    ->formatStateUsing(fn ($state) => match (self::low($state)) {
                         'paid'      => 'Сплачено',
                         'scheduled' => 'Очікує',
                         'overdue'   => 'Прострочено',
@@ -33,7 +52,7 @@ class PolicyPaymentsTable
                         'draft'     => 'Чернетка',
                         default     => self::str($state),
                     })
-                    ->color(fn($state) => match (self::low($state)) {
+                    ->color(fn ($state) => match (self::low($state)) {
                         'paid'      => 'success',
                         'scheduled' => 'warning',
                         'overdue'   => 'danger',
@@ -52,21 +71,21 @@ class PolicyPaymentsTable
                 TextColumn::make('policy.policy_number')
                     ->label('Номер полісу')
                     ->searchable()
-                    ->url(fn($record) => $record->policy ? PolicyResource::getUrl('edit', ['record' => $record->policy]) : null)
+                    ->url(fn ($record) => $record->policy ? PolicyResource::getUrl('edit', ['record' => $record->policy]) : null)
                     ->openUrlInNewTab()
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('method')
                     ->label('Метод')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match (self::low($state)) {
+                    ->formatStateUsing(fn ($state) => match (self::low($state)) {
                         'card'      => 'Картка',
                         'transfer'  => 'Переказ',
                         'cash'      => 'Готівка',
                         'no_method' => 'Не вибрано',
                         default     => self::str($state),
                     })
-                    ->color(fn($state) => match (self::low($state)) {
+                    ->color(fn ($state) => match (self::low($state)) {
                         'card'      => 'info',
                         'transfer'  => 'success',
                         'cash'      => 'warning',
@@ -80,7 +99,7 @@ class PolicyPaymentsTable
                 TextColumn::make('policy.client.primary_email')
                     ->label('Email клієнта')
                     ->searchable()
-                    ->url(fn($record) => $record->policy?->client ? ClientResource::getUrl('edit', ['record' => $record->policy->client]) : null)
+                    ->url(fn ($record) => $record->policy?->client ? ClientResource::getUrl('edit', ['record' => $record->policy->client]) : null)
                     ->openUrlInNewTab()
                     ->toggleable(),
 
@@ -88,13 +107,13 @@ class PolicyPaymentsTable
                     ->label('Сума')
                     ->alignRight()
                     ->sortable()
-                    ->formatStateUsing(fn($state) => number_format((float) $state, 2, ',', ' ') . ' ₴'),
+                    ->formatStateUsing(fn ($state) => number_format((float) $state, 2, ',', ' ') . ' ₴'),
 
                 TextColumn::make('payment_info')
                     ->label('Оплата')
                     ->badge()
                     ->getStateUsing(function ($record) {
-                        $status = $record->status instanceof \BackedEnum  ? $record->status->value : (string) $record->status;
+                        $status = $record->status instanceof \BackedEnum ? $record->status->value : (string) $record->status;
                         $status = mb_strtolower(trim($status));
 
                         $paidRaw = $record->getRawOriginal('paid_at');
@@ -126,8 +145,8 @@ class PolicyPaymentsTable
                         return 'Не сплачено';
                     })
                     ->color(function ($state, $record) {
-                        $status  = $record->status instanceof \BackedEnum  ? $record->status->value : (string) $record->status;
-                        $status  = mb_strtolower(trim($status));
+                        $status = $record->status instanceof \BackedEnum ? $record->status->value : (string) $record->status;
+                        $status = mb_strtolower(trim($status));
                         $hasPaid = (bool) $record->getRawOriginal('paid_at');
                         $hasInit = (bool) $record->getRawOriginal('initiated_at');
 
@@ -138,7 +157,7 @@ class PolicyPaymentsTable
                         if ($hasPaid) {
                             return 'success';
                         }
-                        // если есть и paid, и initiated — всё равно зелёный paid
+
                         if ($status === 'scheduled' && $hasInit) {
                             return 'warning';
                         }
@@ -181,6 +200,7 @@ class PolicyPaymentsTable
                         'overdue'   => 'Прострочено',
                         'canceled'  => 'Скасовано',
                     ]),
+
                 SelectFilter::make('method')
                     ->label('Метод')
                     ->options([
@@ -193,15 +213,27 @@ class PolicyPaymentsTable
             ->recordActions([
                 EditAction::make()
                     ->label('Змінити')
-                    ->visible(fn($record) => ! in_array(self::low($record->status), ['paid', 'overdue'], true)),
+                    ->visible(fn ($record) => ! in_array(self::low($record->status), ['paid', 'overdue'], true)),
             ])
             ->toolbarActions([
                 DeleteBulkAction::make()
                     ->label('Видалити')
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return $user instanceof User && ! $user->isManager();
+                    })
                     ->requiresConfirmation()
                     ->action(function ($records) {
-                        $records->filter(fn($r) => in_array(mb_strtolower((string) ($r->status instanceof BackedEnum ? $r->status->value : $r->status)), ['draft', 'canceled'], true))
-                            ->each->delete();
+                        $records
+                            ->filter(fn ($r) => in_array(
+                                mb_strtolower((string) ($r->status instanceof BackedEnum ? $r->status->value : $r->status)),
+                                ['draft', 'canceled'],
+                                true
+                            ))
+                            ->each
+                            ->delete();
                     }),
             ]);
     }

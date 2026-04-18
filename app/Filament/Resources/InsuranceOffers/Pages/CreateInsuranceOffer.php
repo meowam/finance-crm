@@ -1,24 +1,42 @@
 <?php
+
 namespace App\Filament\Resources\InsuranceOffers\Pages;
 
 use App\Filament\Resources\InsuranceOffers\Concerns\MutatesOfferData;
 use App\Filament\Resources\InsuranceOffers\InsuranceOfferResource;
+use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\Auth;
 
 class CreateInsuranceOffer extends CreateRecord
 {
+    use MutatesOfferData;
+
     protected static string $resource = InsuranceOfferResource::class;
-    protected static ?string $title   = 'Створити страхову пропозицію';
+
+    protected static ?string $title = 'Створити страхову пропозицію';
+
+    protected function authorizeAccess(): void
+    {
+        parent::authorizeAccess();
+
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        abort_unless($user instanceof User, 403);
+        abort_if($user->isManager(), 403);
+    }
 
     protected function getCreateFormAction(): Action
     {
         return parent::getCreateFormAction()
             ->label('Створити');
     }
+
     protected function getCreateAnotherFormAction(): Action
     {
         return parent::getCreateAnotherFormAction()
@@ -41,7 +59,6 @@ class CreateInsuranceOffer extends CreateRecord
             ->label('Назад')
             ->url(static::getResource()::getUrl('index'));
     }
-    use MutatesOfferData;
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {

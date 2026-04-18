@@ -1,7 +1,9 @@
 <?php
+
 namespace App\Filament\Resources\PolicyPayments\Schemas;
 
 use App\Models\Policy;
+use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -11,6 +13,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class PolicyPaymentForm
 {
@@ -23,26 +26,37 @@ class PolicyPaymentForm
                     ->label('Поліс')
                     ->placeholder('Оберіть поліс…')
                     ->searchable()
-                    ->preload(false) 
-                    ->options(fn() =>
+                    ->preload(false)
+                    ->options(function () {
+                        /** @var User|null $user */
+                        $user = Auth::user();
 
-                        Policy::query()
-                            ->select('id', 'policy_number')
-                            ->where('status', 'draft')
-                            ->whereDoesntHave('payments', fn($q) => $q->whereNotNull('blocking_policy_id'))
-                            ->orderBy('policy_number')
-                            ->limit(50)
-                            ->pluck('policy_number', 'id')
-                            ->toArray()
-                    )
-                    ->getSearchResultsUsing(function (string $search) {
                         return Policy::query()
                             ->select('id', 'policy_number')
                             ->where('status', 'draft')
-                            ->whereDoesntHave('payments', fn($q) => $q->whereNotNull('blocking_policy_id'))
-                            ->when($search !== '', fn($q) =>
-                                $q->where('policy_number', 'like', "%{$search}%")
+                            ->whereDoesntHave('payments', fn ($q) => $q->whereNotNull('blocking_policy_id'))
+                            ->when(
+                                $user instanceof User && $user->isManager(),
+                                fn ($query) => $query->where('agent_id', $user->id)
                             )
+                            ->orderBy('policy_number')
+                            ->limit(50)
+                            ->pluck('policy_number', 'id')
+                            ->toArray();
+                    })
+                    ->getSearchResultsUsing(function (string $search) {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return Policy::query()
+                            ->select('id', 'policy_number')
+                            ->where('status', 'draft')
+                            ->whereDoesntHave('payments', fn ($q) => $q->whereNotNull('blocking_policy_id'))
+                            ->when(
+                                $user instanceof User && $user->isManager(),
+                                fn ($query) => $query->where('agent_id', $user->id)
+                            )
+                            ->when($search !== '', fn ($q) => $q->where('policy_number', 'like', "%{$search}%"))
                             ->orderBy('policy_number')
                             ->limit(50)
                             ->pluck('policy_number', 'id')
@@ -76,13 +90,15 @@ class PolicyPaymentForm
                             $rate  = (float) ($policy->commission_rate ?? 0);
                             $final = round($total + $total * ($rate / 100), 2);
                         }
+
                         if ($final === null && $policy?->premium_amount !== null) {
                             $final = (float) $policy->premium_amount;
                         }
+
                         $set('amount', $final !== null ? number_format($final, 2, '.', '') : null);
                     })
-                    ->disabled(fn($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum  ? $record->status->value : $record->status)),
+                    ->disabled(fn ($record) => $record && in_array(
+                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
                         ['paid', 'overdue'],
                         true
                     ))
@@ -159,9 +175,9 @@ class PolicyPaymentForm
 
                         $set('amount', number_format(0, 2, '.', ''));
                     })
-                    ->dehydrateStateUsing(fn($state) => $state !== null && $state !== '' ? number_format((float) $state, 2, '.', '') : number_format(0, 2, '.', ''))
-                    ->disabled(fn($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum  ? $record->status->value : $record->status)),
+                    ->dehydrateStateUsing(fn ($state) => $state !== null && $state !== '' ? number_format((float) $state, 2, '.', '') : number_format(0, 2, '.', ''))
+                    ->disabled(fn ($record) => $record && in_array(
+                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
                         ['paid', 'overdue'],
                         true
                     ))
@@ -203,8 +219,8 @@ class PolicyPaymentForm
                         $set('initiated_at', null);
                         $set('paid_at', null);
                     })
-                    ->disabled(fn($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum  ? $record->status->value : $record->status)),
+                    ->disabled(fn ($record) => $record && in_array(
+                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
                         ['paid', 'overdue'],
                         true
                     ))
@@ -212,19 +228,19 @@ class PolicyPaymentForm
 
                 Select::make('status')
                     ->label('Статус')
-                    ->options(fn($get) => match ($get('method')) {
-                        'transfer'  => ['scheduled' => 'заплановано', 'paid' => 'сплачено', 'canceled' => 'скасовано'],
+                    ->options(fn ($get) => match ($get('method')) {
+                        'transfer'    => ['scheduled' => 'заплановано', 'paid' => 'сплачено', 'canceled' => 'скасовано'],
                         'card', 'cash' => ['paid' => 'сплачено', 'canceled' => 'скасовано'],
-                        'no_method' => ['draft' => 'чернетка', 'canceled' => 'скасовано'],
-                        default     => ['draft' => 'чернетка'],
+                        'no_method'   => ['draft' => 'чернетка', 'canceled' => 'скасовано'],
+                        default       => ['draft' => 'чернетка'],
                     })
                     ->native(false)
                     ->required()
-                    ->default(fn($get) => match ($get('method')) {
-                        'transfer'  => 'scheduled',
+                    ->default(fn ($get) => match ($get('method')) {
+                        'transfer'    => 'scheduled',
                         'card', 'cash' => 'paid',
-                        'no_method' => 'draft',
-                        default     => 'draft',
+                        'no_method'   => 'draft',
+                        default       => 'draft',
                     })
                     ->rules(['required', 'in:draft,scheduled,paid,overdue,canceled'])
                     ->reactive()
@@ -232,7 +248,7 @@ class PolicyPaymentForm
                         $method = $get('method');
 
                         if (in_array($method, ['cash', 'card'], true)) {
-                            $set('paid_at', $state === 'paid' ? ($get('paid_at') ?: now()): null);
+                            $set('paid_at', $state === 'paid' ? ($get('paid_at') ?: now()) : null);
                             $set('initiated_at', null);
                             return;
                         }
@@ -247,28 +263,24 @@ class PolicyPaymentForm
                             return;
                         }
 
-                        if ($method === 'no_method') {
-                            if ($state === 'draft') {
-                                $set('initiated_at', null);
-                                $set('paid_at', null);
-                            }
+                        if ($method === 'no_method' && $state === 'draft') {
+                            $set('initiated_at', null);
+                            $set('paid_at', null);
                         }
                     })
-                    ->disabled(fn($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum  ? $record->status->value : $record->status)),
+                    ->disabled(fn ($record) => $record && in_array(
+                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
                         ['paid', 'overdue'],
                         true
                     ))
                     ->columnSpan(1),
 
                 Hidden::make('paid_at')
-                    ->dehydrateStateUsing(fn($state, $get) =>
-                        $get('status') === 'paid' ? ($state ?: now()): null
-                    )
+                    ->dehydrateStateUsing(fn ($state, $get) => $get('status') === 'paid' ? ($state ?: now()) : null)
                     ->dehydrated(true),
 
                 Hidden::make('initiated_at')
-                    ->dehydrateStateUsing(fn($state, $get) =>
+                    ->dehydrateStateUsing(fn ($state, $get) =>
                         $get('method') === 'transfer'
                             ? ($state ?: ($get('status') === 'scheduled' ? now() : null))
                             : null
@@ -278,9 +290,9 @@ class PolicyPaymentForm
                 Textarea::make('notes')
                     ->label('Нотатки')
                     ->rows(3)
-                    ->dehydrateStateUsing(fn($s) => filled($s) ? $s : null)
-                    ->disabled(fn($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum  ? $record->status->value : $record->status)),
+                    ->dehydrateStateUsing(fn ($s) => filled($s) ? $s : null)
+                    ->disabled(fn ($record) => $record && in_array(
+                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
                         ['paid', 'overdue'],
                         true
                     ))

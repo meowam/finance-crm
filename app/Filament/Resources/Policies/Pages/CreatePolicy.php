@@ -3,15 +3,19 @@
 namespace App\Filament\Resources\Policies\Pages;
 
 use App\Filament\Resources\Policies\PolicyResource;
+use App\Models\Client;
 use App\Models\Policy;
-use Filament\Resources\Pages\CreateRecord;
+use App\Models\User;
 use Filament\Actions\Action;
+use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Auth;
 
 class CreatePolicy extends CreateRecord
 {
     protected static string $resource = PolicyResource::class;
-    protected static ?string $title   = 'Створити поліс';
+
+    protected static ?string $title = 'Створити поліс';
 
     protected function getCreateFormAction(): Action
     {
@@ -44,11 +48,26 @@ class CreatePolicy extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        $state    = $this->form->getState();
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if ($user instanceof User && $user->isManager()) {
+            $data['agent_id'] = $user->id;
+
+            if (! empty($data['client_id'])) {
+                $client = Client::query()->find($data['client_id']);
+
+                if (! $client || (int) $client->assigned_user_id !== (int) $user->id) {
+                    abort(403);
+                }
+            }
+        }
+
+        $state = $this->form->getState();
         $payments = $state['payments'] ?? ($data['payments'] ?? []);
 
-        if (!empty($payments)) {
-            $first         = $payments[0] ?? null;
+        if (! empty($payments)) {
+            $first = $payments[0] ?? null;
             $paymentStatus = $first['status'] ?? 'draft';
             $data['status'] = $paymentStatus === 'paid' ? 'active' : 'draft';
         } else {
@@ -57,7 +76,6 @@ class CreatePolicy extends CreateRecord
 
         return $data;
     }
-
 
     protected function handleRecordCreation(array $data): Model
     {
@@ -76,7 +94,7 @@ class CreatePolicy extends CreateRecord
     protected function afterCreate(): void
     {
         /** @var \App\Models\Policy $policy */
-        $policy  = $this->record->refresh();
+        $policy = $this->record->refresh();
 
         $payment = $policy->payments()->latest('id')->first();
 
@@ -84,6 +102,7 @@ class CreatePolicy extends CreateRecord
             $policy->forceFill([
                 'status' => ($payment->status->value === 'paid') ? 'active' : 'draft',
             ])->save();
+
             return;
         }
 
@@ -94,6 +113,8 @@ class CreatePolicy extends CreateRecord
             'due_date' => now()->addDays(rand(5, 7))->toDateString(),
         ]);
 
-        $policy->forceFill(['status' => 'draft'])->save();
+        $policy->forceFill([
+            'status' => 'draft',
+        ])->save();
     }
 }
