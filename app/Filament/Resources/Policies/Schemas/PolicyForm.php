@@ -14,6 +14,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -32,23 +33,64 @@ class PolicyForm
                     ->columnSpan(1),
 
                 Select::make('client_id')
-                    ->label('Клієнт (email)')
+                    ->label('Клієнт')
                     ->placeholder('Оберіть клієнта…')
-                    ->options(function () {
+                    ->searchable()
+                    ->preload(false)
+                    ->getSearchResultsUsing(function (string $search): array {
                         /** @var User|null $user */
                         $user = Auth::user();
 
                         return Client::query()
                             ->when(
                                 $user instanceof User && $user->isManager(),
-                                fn ($query) => $query->where('assigned_user_id', $user->id)
+                                fn (Builder $query) => $query->where('assigned_user_id', $user->id)
                             )
-                            ->orderBy('primary_email')
-                            ->pluck('primary_email', 'id')
+                            ->where(function (Builder $query) use ($search) {
+                                $query
+                                    ->where('first_name', 'like', "%{$search}%")
+                                    ->orWhere('last_name', 'like', "%{$search}%")
+                                    ->orWhere('middle_name', 'like', "%{$search}%")
+                                    ->orWhere('company_name', 'like', "%{$search}%")
+                                    ->orWhere('primary_phone', 'like', "%{$search}%")
+                                    ->orWhere('primary_email', 'like', "%{$search}%")
+                                    ->orWhere('document_number', 'like', "%{$search}%")
+                                    ->orWhere('tax_id', 'like', "%{$search}%");
+                            })
+                            ->orderBy('last_name')
+                            ->orderBy('first_name')
+                            ->limit(50)
+                            ->get()
+                            ->mapWithKeys(fn (Client $client) => [
+                                $client->id => $client->display_label,
+                            ])
                             ->toArray();
                     })
-                    ->searchable()
-                    ->preload()
+                    ->getOptionLabelUsing(function ($value): ?string {
+                        if (! $value) {
+                            return null;
+                        }
+
+                        return Client::query()->find($value)?->display_label;
+                    })
+                    ->options(function (): array {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return Client::query()
+                            ->when(
+                                $user instanceof User && $user->isManager(),
+                                fn (Builder $query) => $query->where('assigned_user_id', $user->id)
+                            )
+                            ->orderBy('last_name')
+                            ->orderBy('first_name')
+                            ->limit(25)
+                            ->get()
+                            ->mapWithKeys(fn (Client $client) => [
+                                $client->id => $client->display_label,
+                            ])
+                            ->toArray();
+                    })
                     ->native(false)
                     ->required()
                     ->rules(['required', 'exists:clients,id'])

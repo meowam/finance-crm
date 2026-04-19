@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Policies\Tables;
 
 use App\Filament\Resources\Users\UserResource;
+use App\Models\Client;
 use App\Models\Policy;
 use App\Models\User;
 use BackedEnum;
@@ -11,6 +12,7 @@ use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +38,7 @@ class PoliciesTable
 
                 $query
                     ->with([
-                        'client:id,primary_email',
+                        'client:id,primary_email,first_name,last_name,middle_name,company_name,type',
                         'insuranceOffer.insuranceProduct:id,name',
                         'agent:id,name',
                     ])
@@ -80,6 +82,42 @@ class PoliciesTable
                         'draft'     => 'gray',
                         ''          => 'gray',
                         default     => 'gray',
+                    })
+                    ->toggleable(),
+
+                TextColumn::make('client_summary')
+                    ->label('Клієнт')
+                    ->state(function ($record): string {
+                        $client = $record->client;
+
+                        if (! $client) {
+                            return '—';
+                        }
+
+                        if ($client->type === 'company' && filled($client->company_name)) {
+                            return (string) $client->company_name;
+                        }
+
+                        $parts = array_filter([
+                            $client->last_name,
+                            $client->first_name,
+                            $client->middle_name,
+                        ]);
+
+                        return $parts !== [] ? implode(' ', $parts) : ($client->primary_email ?: '—');
+                    })
+                    ->searchable(query: function (EloquentBuilder $query, string $search) {
+                        $query->whereHas('client', function (EloquentBuilder $clientQuery) use ($search) {
+                            $clientQuery
+                                ->where('primary_email', 'like', "%{$search}%")
+                                ->orWhere('primary_phone', 'like', "%{$search}%")
+                                ->orWhere('document_number', 'like', "%{$search}%")
+                                ->orWhere('tax_id', 'like', "%{$search}%")
+                                ->orWhere('company_name', 'like', "%{$search}%")
+                                ->orWhere('first_name', 'like', "%{$search}%")
+                                ->orWhere('last_name', 'like', "%{$search}%")
+                                ->orWhere('middle_name', 'like', "%{$search}%");
+                        });
                     })
                     ->toggleable(),
 
@@ -228,6 +266,27 @@ class PoliciesTable
                                         ->where('lp2.status', '=', $value);
                                 });
                         });
+                    }),
+
+                SelectFilter::make('client_id')
+                    ->label('Клієнт')
+                    ->options(function (): array {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return Client::query()
+                            ->when(
+                                $user instanceof User && $user->isManager(),
+                                fn (EloquentBuilder $query) => $query->where('assigned_user_id', $user->id)
+                            )
+                            ->orderBy('last_name')
+                            ->orderBy('first_name')
+                            ->limit(100)
+                            ->get()
+                            ->mapWithKeys(function (Client $client) {
+                                return [$client->id => $client->display_label];
+                            })
+                            ->toArray();
                     }),
             ])
             ->recordActions([

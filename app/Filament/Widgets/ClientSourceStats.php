@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Widgets;
 
 use App\Models\Client;
@@ -28,14 +29,12 @@ class ClientSourceStats extends BaseWidget
         $officeClientsCount         = (clone $baseQuery)->where('source', 'office')->count();
         $recommendationClientsCount = (clone $baseQuery)->where('source', 'recommendation')->count();
 
-        $managerDrivenCount = $officeClientsCount + $recommendationClientsCount;
-
         return [
             Stat::make('Нові клієнти', (string) $newClientsCount)
                 ->description('Усі джерела за 30 днів')
                 ->icon('heroicon-o-user-plus'),
 
-            Stat::make('Через офіс', (string) $managerDrivenCount)
+            Stat::make('Через офіс', (string) $officeClientsCount)
                 ->description('Джерело: office')
                 ->icon('heroicon-o-briefcase')
                 ->color('info'),
