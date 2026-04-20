@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Resources\Clients\Schemas;
 
 use App\Models\User;
@@ -41,7 +42,7 @@ class ClientForm
                     ->readOnly()
                     ->required()
                     ->hiddenOn(EditRecord::class)
-                    ->dehydrateStateUsing(fn($state) => 'lead')
+                    ->dehydrateStateUsing(fn ($state) => 'lead')
                     ->default('Потенційний'),
 
                 Select::make('status')
@@ -61,7 +62,7 @@ class ClientForm
                     ]),
 
                 TextInput::make('first_name')
-                    ->label(fn(Get $get) => $get('type') === 'company' ? "Ім'я контактної особи" : "Ім'я")
+                    ->label(fn (Get $get) => $get('type') === 'company' ? "Ім'я контактної особи" : "Ім'я")
                     ->required()
                     ->minLength(2)
                     ->maxLength(50)
@@ -74,7 +75,7 @@ class ClientForm
                     ]),
 
                 TextInput::make('last_name')
-                    ->label(fn(Get $get) => $get('type') === 'company' ? 'Прізвище контактної особи' : 'Прізвище')
+                    ->label(fn (Get $get) => $get('type') === 'company' ? 'Прізвище контактної особи' : 'Прізвище')
                     ->required()
                     ->minLength(3)
                     ->maxLength(50)
@@ -87,7 +88,7 @@ class ClientForm
                     ]),
 
                 TextInput::make('middle_name')
-                    ->label(fn(Get $get) => $get('type') === 'company' ? 'По батькові контактної особи' : 'По батькові')
+                    ->label(fn (Get $get) => $get('type') === 'company' ? 'По батькові контактної особи' : 'По батькові')
                     ->nullable()
                     ->minLength(2)
                     ->maxLength(50)
@@ -102,8 +103,8 @@ class ClientForm
                     ->label('Назва компанії')
                     ->nullable()
                     ->live()
-                    ->required(fn(Get $get) => $get('type') === 'company')
-                    ->visible(fn(Get $get) => $get('type') === 'company')
+                    ->required(fn (Get $get) => $get('type') === 'company')
+                    ->visible(fn (Get $get) => $get('type') === 'company')
                     ->rules(['nullable', 'string', 'max:150'])
                     ->validationMessages([
                         'required' => 'Вкажіть назву компанії.',
@@ -132,10 +133,10 @@ class ClientForm
                     ]),
 
                 TextInput::make('document_number')
-                    ->label(fn(Get $get) => $get('type') === 'company' ? 'Номер документа контактної особи' : 'Номер документа')
+                    ->label('Номер документа')
                     ->placeholder('AA123456')
-                    ->required(fn(Get $get) => $get('type') === 'individual')
-                    ->visible(fn(Get $get) => $get('type') === 'individual')
+                    ->required(fn (Get $get) => $get('type') === 'individual')
+                    ->visible(fn (Get $get) => $get('type') === 'individual')
                     ->rules(['nullable', 'regex:/^[A-Z]{2}\\d{6}$/'])
                     ->validationMessages([
                         'required' => 'Вкажіть номер документа.',
@@ -143,30 +144,26 @@ class ClientForm
                     ]),
 
                 TextInput::make('tax_id')
-                    ->label(fn(Get $get) => $get('type') === 'company'
-                            ? 'ЄДРПОУ / податковий номер'
-                            : 'ІПН')
-                    ->placeholder(fn(Get $get) => $get('type') === 'company'
-                            ? '12345678'
-                            : '1234567890')
+                    ->label(fn (Get $get) => $get('type') === 'company' ? 'ЄДРПОУ / податковий номер' : 'ІПН')
+                    ->placeholder(fn (Get $get) => $get('type') === 'company' ? '12345678' : '1234567890')
                     ->required()
-                    ->rules(fn(Get $get) => $get('type') === 'company'
-                            ? ['regex:/^\d{8,10}$/']
-                            : ['regex:/^\d{10}$/'])
+                    ->rules(fn (Get $get) => $get('type') === 'company'
+                        ? ['regex:/^\\d{8,10}$/']
+                        : ['regex:/^\\d{10}$/'])
                     ->validationMessages([
                         'required' => 'Вкажіть податковий номер.',
                         'regex'    => 'Для фізичної особи потрібно 10 цифр, для компанії - 8 або 10 цифр.',
                     ]),
 
                 DatePicker::make('date_of_birth')
-                    ->label(fn(Get $get) => $get('type') === 'company' ? 'Дата народження контактної особи' : 'Дата народження')
+                    ->label('Дата народження')
                     ->native(false)
                     ->displayFormat('d.m.Y')
                     ->format('Y-m-d')
                     ->timezone(null)
                     ->closeOnDateSelection()
-                    ->required(fn(Get $get) => $get('type') === 'individual')
-                    ->visible(fn(Get $get) => $get('type') === 'individual')
+                    ->required(fn (Get $get) => $get('type') === 'individual')
+                    ->visible(fn (Get $get) => $get('type') === 'individual')
                     ->rules(function () {
                         $max = Carbon::now()->subYears(18)->toDateString();
                         $min = Carbon::now()->subYears(73)->toDateString();
@@ -223,10 +220,12 @@ class ClientForm
                         'office'         => 'Офіс',
                         'online'         => 'Онлайн',
                         'recommendation' => 'Рекомендація',
+                        'landing'        => 'Лендінг',
+                        'other'          => 'Інше',
                     ])
                     ->native(false)
                     ->required()
-                    ->rules([Rule::in(['office', 'online', 'recommendation'])])
+                    ->rules([Rule::in(['office', 'online', 'recommendation', 'landing', 'other'])])
                     ->default('office')
                     ->validationMessages([
                         'required' => 'Оберіть канал звернення.',

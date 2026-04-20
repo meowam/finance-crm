@@ -4,7 +4,6 @@ namespace App\Filament\Resources\Clients\Tables;
 
 use App\Filament\Resources\Policies\PolicyResource;
 use App\Filament\Resources\Users\UserResource;
-use App\Models\Client;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteBulkAction;
@@ -144,6 +143,8 @@ class ClientsTable
                         'office'         => 'Офіс',
                         'online'         => 'Онлайн',
                         'recommendation' => 'Рекомендація',
+                        'landing'        => 'Лендінг',
+                        'other'          => 'Інше',
                         null, ''         => '—',
                         default          => (string) $state,
                     })
@@ -152,6 +153,8 @@ class ClientsTable
                         'office'         => 'info',
                         'online'         => 'success',
                         'recommendation' => 'warning',
+                        'landing'        => 'primary',
+                        'other'          => 'gray',
                         default          => 'gray',
                     })
                     ->sortable()
@@ -190,6 +193,8 @@ class ClientsTable
                         'office'         => 'Офіс',
                         'online'         => 'Онлайн',
                         'recommendation' => 'Рекомендація',
+                        'landing'        => 'Лендінг',
+                        'other'          => 'Інше',
                     ]),
 
                 SelectFilter::make('assigned_user_id')
@@ -252,7 +257,7 @@ class ClientsTable
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return $user instanceof User && $user->can('deleteAny', Client::class);
+                        return $user instanceof User && $user->can('deleteAny', \App\Models\Client::class);
                     }),
             ]);
     }

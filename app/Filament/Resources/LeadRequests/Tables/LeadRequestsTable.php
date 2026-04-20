@@ -3,13 +3,11 @@
 namespace App\Filament\Resources\LeadRequests\Tables;
 
 use App\Filament\Resources\Clients\ClientResource;
-use App\Models\Client;
 use App\Models\LeadRequest;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Notifications\Notification;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
@@ -118,20 +116,10 @@ class LeadRequestsTable
                     ->label('Створити клієнта')
                     ->icon('heroicon-o-user-plus')
                     ->visible(fn (LeadRequest $record) => $record->status !== 'converted')
-                    ->requiresConfirmation()
-                    ->action(function (LeadRequest $record) {
-                        if ($record->converted_client_id) {
-                            Notification::make()
-                                ->warning()
-                                ->title('Заявка вже конвертована')
-                                ->send();
-
-                            return;
-                        }
-
-                        $client = Client::create([
+                    ->url(function (LeadRequest $record): string {
+                        return ClientResource::getUrl('create', [
+                            'lead_request_id' => $record->id,
                             'type' => $record->type,
-                            'status' => 'lead',
                             'first_name' => $record->first_name,
                             'last_name' => $record->last_name,
                             'middle_name' => $record->middle_name,
@@ -144,17 +132,6 @@ class LeadRequestsTable
                             'assigned_user_id' => $record->assigned_user_id,
                             'notes' => $record->comment,
                         ]);
-
-                        $record->update([
-                            'status' => 'converted',
-                            'converted_client_id' => $client->id,
-                        ]);
-
-                        Notification::make()
-                            ->success()
-                            ->title('Клієнта створено')
-                            ->body('Заявку успішно конвертовано в клієнта.')
-                            ->send();
                     }),
 
                 Action::make('openClient')
