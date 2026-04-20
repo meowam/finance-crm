@@ -9,6 +9,7 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class CreatePolicy extends CreateRecord
@@ -51,13 +52,15 @@ class CreatePolicy extends CreateRecord
         /** @var User|null $user */
         $user = Auth::user();
 
+        abort_unless($user?->can('create', Policy::class), 403);
+
         if ($user instanceof User && $user->isManager()) {
             $data['agent_id'] = $user->id;
 
             if (! empty($data['client_id'])) {
                 $client = Client::query()->find($data['client_id']);
 
-                if (! $client || (int) $client->assigned_user_id !== (int) $user->id) {
+                if (! $client || ! $client->isVisibleTo($user)) {
                     abort(403);
                 }
             }
@@ -72,6 +75,11 @@ class CreatePolicy extends CreateRecord
             $data['status'] = $paymentStatus === 'paid' ? 'active' : 'draft';
         } else {
             $data['status'] = 'draft';
+        }
+
+        if (blank($data['payment_due_at'] ?? null)) {
+            $base = $data['effective_date'] ?? now()->toDateString();
+            $data['payment_due_at'] = Carbon::parse($base)->addDays(7)->toDateString();
         }
 
         return $data;
@@ -106,11 +114,13 @@ class CreatePolicy extends CreateRecord
             return;
         }
 
+        $base = $policy->effective_date ?: now()->toDateString();
+
         $policy->payments()->create([
             'amount'   => $policy->premium_amount,
             'method'   => 'no_method',
             'status'   => 'draft',
-            'due_date' => now()->addDays(rand(5, 7))->toDateString(),
+            'due_date' => Carbon::parse($base)->addDays(7)->toDateString(),
         ]);
 
         $policy->forceFill([

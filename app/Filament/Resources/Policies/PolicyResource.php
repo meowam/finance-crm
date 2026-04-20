@@ -27,6 +27,16 @@ class PolicyResource extends Resource
     protected static ?string $modelLabel       = 'Поліс';
     protected static ?string $pluralModelLabel = 'Поліси';
 
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->can('viewAny', Policy::class) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->can('create', Policy::class) ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return PolicyForm::configure($schema);
@@ -49,21 +59,12 @@ class PolicyResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        $query = parent::getEloquentQuery();
-
-        if ($user instanceof User && $user->isManager()) {
-            $query->where('agent_id', $user->id);
-        }
-
-        return $query;
+        return parent::getEloquentQuery()->visibleTo($user);
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $user instanceof User;
+        return static::canViewAny();
     }
 
     public static function getPages(): array

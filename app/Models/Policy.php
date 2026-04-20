@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\PaymentStatus;
 use App\Enums\PolicyStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -40,23 +41,74 @@ class Policy extends Model
         'commission_rate'  => 'decimal:2',
     ];
 
-    public function client()          { return $this->belongsTo(Client::class); }
-    public function insuranceOffer()  { return $this->belongsTo(InsuranceOffer::class, 'insurance_offer_id'); }
-    public function agent()           { return $this->belongsTo(User::class, 'agent_id'); }
-    public function payments()        { return $this->hasMany(PolicyPayment::class); }
-    public function latestPayment()   { return $this->hasOne(PolicyPayment::class)->latestOfMany(); }
+    public function client()
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function insuranceOffer()
+    {
+        return $this->belongsTo(InsuranceOffer::class, 'insurance_offer_id');
+    }
+
+    public function agent()
+    {
+        return $this->belongsTo(User::class, 'agent_id');
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(PolicyPayment::class);
+    }
+
+    public function latestPayment()
+    {
+        return $this->hasOne(PolicyPayment::class)->latestOfMany();
+    }
+
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if (! $user instanceof User) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->isAdmin() || $user->isSupervisor()) {
+            return $query;
+        }
+
+        if ($user->isManager()) {
+            return $query->where('agent_id', $user->id);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    public function isVisibleTo(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if ($user->isAdmin() || $user->isSupervisor()) {
+            return true;
+        }
+
+        return $user->isManager() && (int) $this->agent_id === (int) $user->id;
+    }
 
     protected static function booted(): void
     {
         static::creating(function (Policy $m) {
-            if (!filled($m->policy_number)) {
-                do { $candidate = 'POL-' . Str::upper(Str::random(10)); }
-                while (self::where('policy_number', $candidate)->exists());
+            if (! filled($m->policy_number)) {
+                do {
+                    $candidate = 'POL-' . Str::upper(Str::random(10));
+                } while (self::where('policy_number', $candidate)->exists());
+
                 $m->policy_number = $candidate;
             }
 
             if (blank($m->status)) {
-                $m->status = PolicyStatus::Draft->value; 
+                $m->status = PolicyStatus::Draft->value;
             }
 
             if (blank($m->payment_due_at)) {
@@ -70,11 +122,13 @@ class Policy extends Model
                 return;
             }
 
+            $base = $m->effective_date ?: now()->toDateString();
+
             $m->payments()->create([
                 'amount'   => $m->premium_amount,
                 'method'   => 'no_method',
                 'status'   => 'draft',
-                'due_date' => now()->addDays(rand(5, 7))->toDateString(),
+                'due_date' => \Illuminate\Support\Carbon::parse($base)->addDays(7)->toDateString(),
             ]);
         });
     }
@@ -87,7 +141,7 @@ class Policy extends Model
             if ($this->expiration_date && now()->greaterThanOrEqualTo($this->expiration_date)) {
                 $this->status = PolicyStatus::Completed;
             } else {
-                if (!in_array($this->status->value, [PolicyStatus::Completed->value, PolicyStatus::Canceled->value], true)) {
+                if (! in_array($this->status->value, [PolicyStatus::Completed->value, PolicyStatus::Canceled->value], true)) {
                     $this->status = PolicyStatus::Active;
                 }
             }

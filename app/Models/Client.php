@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\ClientContact;
 use App\Models\Policy;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -53,6 +54,36 @@ class Client extends Model
         return $this->belongsTo(\App\Models\User::class, 'assigned_user_id');
     }
 
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if (! $user instanceof User) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->isAdmin() || $user->isSupervisor()) {
+            return $query;
+        }
+
+        if ($user->isManager()) {
+            return $query->where('assigned_user_id', $user->id);
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    public function isVisibleTo(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if ($user->isAdmin() || $user->isSupervisor()) {
+            return true;
+        }
+
+        return $user->isManager() && (int) $this->assigned_user_id === (int) $user->id;
+    }
+
     public function getFullNameAttribute(): string
     {
         $parts = array_filter([
@@ -97,9 +128,9 @@ class Client extends Model
 
         return implode(' · ', array_filter($chunks, fn ($value) => filled($value)));
     }
-
     // public function activities()
     // {
     //     return $this->hasMany(Activity::class);
     // }
 }
+

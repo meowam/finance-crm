@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\Clients\Schemas;
 
 use App\Models\User;
@@ -9,6 +8,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +29,7 @@ class ClientForm
                     ])
                     ->required()
                     ->native(false)
+                    ->live()
                     ->rules([Rule::in(['individual', 'company'])])
                     ->default('individual')
                     ->validationMessages([
@@ -40,7 +41,7 @@ class ClientForm
                     ->readOnly()
                     ->required()
                     ->hiddenOn(EditRecord::class)
-                    ->dehydrateStateUsing(fn ($state) => 'lead')
+                    ->dehydrateStateUsing(fn($state) => 'lead')
                     ->default('Потенційний'),
 
                 Select::make('status')
@@ -60,50 +61,53 @@ class ClientForm
                     ]),
 
                 TextInput::make('first_name')
-                    ->label("Ім'я")
+                    ->label(fn(Get $get) => $get('type') === 'company' ? "Ім'я контактної особи" : "Ім'я")
                     ->required()
                     ->minLength(2)
                     ->maxLength(50)
                     ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
-                        'required' => "Поле «Ім'я» є обов'язковим.",
-                        'min'      => "Ім'я повинно містити щонайменше 2 символи.",
-                        'max'      => "Ім'я повинно містити не більше 50 символів.",
-                        'regex'    => "Ім'я повинно складатися лише з літер, пробілів, апострофа або дефіса. Приклад: «Олена», «Анна-Марія».",
+                        'required' => "Поле є обов'язковим.",
+                        'min'      => "Поле повинно містити щонайменше 2 символи.",
+                        'max'      => "Поле повинно містити не більше 50 символів.",
+                        'regex'    => "Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.",
                     ]),
 
                 TextInput::make('last_name')
-                    ->label('Прізвище')
+                    ->label(fn(Get $get) => $get('type') === 'company' ? 'Прізвище контактної особи' : 'Прізвище')
                     ->required()
                     ->minLength(3)
                     ->maxLength(50)
                     ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
-                        'required' => 'Поле «Прізвище» є обовʼязковим.',
-                        'min'      => 'Прізвище повинно містити щонайменше 3 символи.',
-                        'max'      => 'Прізвище повинно містити не більше 50 символів.',
-                        'regex'    => 'Прізвище повинно складатися лише з літер, пробілів, апострофа або дефіса. Приклад: «Коваль», «Шевченко-Петренко».',
+                        'required' => 'Поле є обовʼязковим.',
+                        'min'      => 'Поле повинно містити щонайменше 3 символи.',
+                        'max'      => 'Поле повинно містити не більше 50 символів.',
+                        'regex'    => 'Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.',
                     ]),
 
                 TextInput::make('middle_name')
-                    ->label('По батькові')
+                    ->label(fn(Get $get) => $get('type') === 'company' ? 'По батькові контактної особи' : 'По батькові')
                     ->nullable()
                     ->minLength(2)
                     ->maxLength(50)
                     ->rules(['nullable', "regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
-                        'min'   => 'По батькові повинно містити щонайменше 2 символи.',
-                        'max'   => 'По батькові повинно містити не більше 50 символів.',
-                        'regex' => 'По батькові повинно складатися лише з літер, пробілів, апострофа або дефіса. Приклад: «Іванівна».',
+                        'min'   => 'Поле повинно містити щонайменше 2 символи.',
+                        'max'   => 'Поле повинно містити не більше 50 символів.',
+                        'regex' => 'Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.',
                     ]),
 
                 TextInput::make('company_name')
                     ->label('Назва компанії')
                     ->nullable()
-                    ->rules(['nullable', 'required_if:type,company', 'string', 'max:150'])
+                    ->live()
+                    ->required(fn(Get $get) => $get('type') === 'company')
+                    ->visible(fn(Get $get) => $get('type') === 'company')
+                    ->rules(['nullable', 'string', 'max:150'])
                     ->validationMessages([
-                        'required_if' => 'Вкажіть назву компанії.',
-                        'max'         => 'Назва компанії повинна містити не більше 150 символів.',
+                        'required' => 'Вкажіть назву компанії.',
+                        'max'      => 'Назва компанії повинна містити не більше 150 символів.',
                     ]),
 
                 TextInput::make('primary_email')
@@ -128,33 +132,41 @@ class ClientForm
                     ]),
 
                 TextInput::make('document_number')
-                    ->label('Номер документа')
+                    ->label(fn(Get $get) => $get('type') === 'company' ? 'Номер документа контактної особи' : 'Номер документа')
                     ->placeholder('AA123456')
-                    ->required()
-                    ->rules(['regex:/^[A-Z]{2}\\d{6}$/'])
+                    ->required(fn(Get $get) => $get('type') === 'individual')
+                    ->visible(fn(Get $get) => $get('type') === 'individual')
+                    ->rules(['nullable', 'regex:/^[A-Z]{2}\\d{6}$/'])
                     ->validationMessages([
                         'required' => 'Вкажіть номер документа.',
-                        'regex'    => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр (приклад: KB905423).',
+                        'regex'    => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр.',
                     ]),
 
                 TextInput::make('tax_id')
-                    ->label('ІПН / ЄДРПОУ')
-                    ->placeholder('6519864773')
+                    ->label(fn(Get $get) => $get('type') === 'company'
+                            ? 'ЄДРПОУ / податковий номер'
+                            : 'ІПН')
+                    ->placeholder(fn(Get $get) => $get('type') === 'company'
+                            ? '12345678'
+                            : '1234567890')
                     ->required()
-                    ->rules(['regex:/^\\d{10}$/'])
+                    ->rules(fn(Get $get) => $get('type') === 'company'
+                            ? ['regex:/^\d{8,10}$/']
+                            : ['regex:/^\d{10}$/'])
                     ->validationMessages([
-                        'required' => 'Вкажіть ІПН / ЄДРПОУ.',
-                        'regex'    => 'ІПН / ЄДРПОУ повинен містити рівно 10 цифр. Приклад: 6519864773.',
+                        'required' => 'Вкажіть податковий номер.',
+                        'regex'    => 'Для фізичної особи потрібно 10 цифр, для компанії - 8 або 10 цифр.',
                     ]),
 
                 DatePicker::make('date_of_birth')
-                    ->label('Дата народження')
+                    ->label(fn(Get $get) => $get('type') === 'company' ? 'Дата народження контактної особи' : 'Дата народження')
                     ->native(false)
                     ->displayFormat('d.m.Y')
                     ->format('Y-m-d')
                     ->timezone(null)
                     ->closeOnDateSelection()
-                    ->required()
+                    ->required(fn(Get $get) => $get('type') === 'individual')
+                    ->visible(fn(Get $get) => $get('type') === 'individual')
                     ->rules(function () {
                         $max = Carbon::now()->subYears(18)->toDateString();
                         $min = Carbon::now()->subYears(73)->toDateString();
@@ -163,9 +175,9 @@ class ClientForm
                     })
                     ->validationMessages([
                         'required'        => 'Вкажіть дату народження.',
-                        'date'            => 'Дата народження повинна бути у форматі дд.мм.рррр (приклад: 31.10.1995).',
-                        'after_or_equal'  => 'Дата народження повинна бути не раніше :date (обмеження 73 роки).',
-                        'before_or_equal' => 'Дата народження повинна бути не пізніше :date (мінімум 18 років).',
+                        'date'            => 'Дата народження повинна бути у форматі дд.мм.рррр.',
+                        'after_or_equal'  => 'Дата народження повинна бути не раніше :date.',
+                        'before_or_equal' => 'Дата народження повинна бути не пізніше :date.',
                     ]),
 
                 Select::make('preferred_contact_method')

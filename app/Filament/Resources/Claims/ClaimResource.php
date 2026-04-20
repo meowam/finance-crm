@@ -27,6 +27,16 @@ class ClaimResource extends Resource
     protected static ?string $modelLabel = 'Заява';
     protected static ?string $pluralModelLabel = 'Заяви';
 
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->can('viewAny', Claim::class) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->can('create', Claim::class) ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ClaimForm::configure($schema);
@@ -49,21 +59,14 @@ class ClaimResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        $query = parent::getEloquentQuery()->with(['policy', 'reportedBy']);
-
-        if ($user instanceof User && $user->isManager()) {
-            $query->where('reported_by_id', $user->id);
-        }
-
-        return $query;
+        return parent::getEloquentQuery()
+            ->with(['policy', 'reportedBy'])
+            ->visibleTo($user);
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $user instanceof User;
+        return static::canViewAny();
     }
 
     public static function getPages(): array

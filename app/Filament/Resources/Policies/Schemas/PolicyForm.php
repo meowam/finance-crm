@@ -42,10 +42,7 @@ class PolicyForm
                         $user = Auth::user();
 
                         return Client::query()
-                            ->when(
-                                $user instanceof User && $user->isManager(),
-                                fn (Builder $query) => $query->where('assigned_user_id', $user->id)
-                            )
+                            ->visibleTo($user)
                             ->where(function (Builder $query) use ($search) {
                                 $query
                                     ->where('first_name', 'like', "%{$search}%")
@@ -78,10 +75,7 @@ class PolicyForm
                         $user = Auth::user();
 
                         return Client::query()
-                            ->when(
-                                $user instanceof User && $user->isManager(),
-                                fn (Builder $query) => $query->where('assigned_user_id', $user->id)
-                            )
+                            ->visibleTo($user)
                             ->orderBy('last_name')
                             ->orderBy('first_name')
                             ->limit(25)
@@ -129,12 +123,15 @@ class PolicyForm
                                 'Преміум'  => 0.50,
                                 default    => 2.00,
                             };
+
                             $set('commission_rate', number_format($autoRate, 2, '.', ''));
                         }
 
-                        $set('coverage_amount', $offer?->coverage_amount !== null
-                            ? number_format((float) $offer->coverage_amount, 2, '.', '')
-                            : null
+                        $set(
+                            'coverage_amount',
+                            $offer?->coverage_amount !== null
+                                ? number_format((float) $offer->coverage_amount, 2, '.', '')
+                                : null
                         );
 
                         $rate = (float) ($get('commission_rate') ?? 0);
@@ -158,9 +155,14 @@ class PolicyForm
                         if (! $record) {
                             return;
                         }
+
                         $offer = $state ? InsuranceOffer::find($state) : null;
+
                         if ($offer && $record->effective_date) {
-                            $exp = Carbon::parse($record->effective_date)->addMonths((int) $offer->duration_months)->format('Y-m-d');
+                            $exp = Carbon::parse($record->effective_date)
+                                ->addMonths((int) $offer->duration_months)
+                                ->format('Y-m-d');
+
                             $set('expiration_date', $exp);
                         }
                     })
@@ -245,11 +247,13 @@ class PolicyForm
                     ->reactive()
                     ->afterStateHydrated(function ($state, callable $set, callable $get) {
                         $paymentStatus = $get('payments.0.status') ?? 'draft';
+
                         $policyStatus = match ($paymentStatus) {
                             'paid' => 'active',
                             'scheduled', 'draft' => 'draft',
                             default => 'draft',
                         };
+
                         $set('status', $policyStatus);
                     })
                     ->columnSpan(1),
@@ -266,12 +270,14 @@ class PolicyForm
                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                         $offerId = $get('insurance_offer_id');
                         $offer   = $offerId ? InsuranceOffer::find($offerId) : null;
+
                         if ($offer && $state) {
                             $exp = Carbon::parse($state)->addMonths((int) $offer->duration_months)->format('Y-m-d');
                             $set('expiration_date', $exp);
                         }
+
                         if ($state) {
-                            $set('payments.0.due_date', Carbon::parse($state)->addDays(rand(5, 7))->toDateString());
+                            $set('payments.0.due_date', Carbon::parse($state)->addDays(7)->toDateString());
                         }
                     })
                     ->columnSpan(1),
@@ -296,9 +302,11 @@ class PolicyForm
                     ->rules(['numeric', 'min:0'])
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set) {
-                        $set('payments.0.amount', $state !== null && $state !== ''
-                            ? number_format((float) $state, 2, '.', '')
-                            : number_format(0, 2, '.', '')
+                        $set(
+                            'payments.0.amount',
+                            $state !== null && $state !== ''
+                                ? number_format((float) $state, 2, '.', '')
+                                : number_format(0, 2, '.', '')
                         );
                     })
                     ->columnSpan(1),
@@ -333,12 +341,15 @@ class PolicyForm
                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                         $offerId = $get('insurance_offer_id');
                         $offer   = $offerId ? InsuranceOffer::find($offerId) : null;
+
                         if (! $offer) {
                             return;
                         }
+
                         $base = (float) $offer->price * (int) $offer->duration_months;
                         $rate = (float) ($state ?? 0);
                         $prem = $base + ($base * ($rate / 100));
+
                         $set('premium_amount', number_format($prem, 2, '.', ''));
                         $set('payments.0.amount', number_format($prem, 2, '.', ''));
                     })
@@ -378,7 +389,9 @@ class PolicyForm
                                     'transfer'     => 'scheduled',
                                     default        => 'draft',
                                 };
+
                                 $set('status', $paymentStatus);
+
                                 $policyStatus = $paymentStatus === 'paid' ? 'active' : 'draft';
                                 $set('../../status', $policyStatus);
                             })
@@ -396,11 +409,13 @@ class PolicyForm
                             ->dehydrated(true)
                             ->afterStateHydrated(function ($state, callable $set, $record, $get) {
                                 $method = $get('method') ?? 'no_method';
+
                                 $paymentStatus = match ($method) {
                                     'card', 'cash' => 'paid',
                                     'transfer'     => 'scheduled',
                                     default        => 'draft',
                                 };
+
                                 $set('status', $paymentStatus);
 
                                 $policyStatus = $paymentStatus === 'paid' ? 'active' : 'draft';
@@ -423,13 +438,14 @@ class PolicyForm
                             ->default(function (Get $get) {
                                 $eff = $get('../../effective_date');
                                 $base = $eff ? Carbon::parse($eff) : now();
-                                return $base->copy()->addDays(rand(5, 7))->toDateString();
+
+                                return $base->copy()->addDays(7)->toDateString();
                             })
                             ->afterStateHydrated(function ($state, callable $set, Get $get) {
                                 if (blank($state)) {
                                     $eff = $get('../../effective_date');
                                     $base = $eff ? Carbon::parse($eff) : now();
-                                    $set('due_date', $base->copy()->addDays(rand(5, 7))->toDateString());
+                                    $set('due_date', $base->copy()->addDays(7)->toDateString());
                                 }
                             })
                             ->columnSpan(1),
@@ -446,12 +462,22 @@ class PolicyForm
                                 if ($state !== null && $state !== '') {
                                     return;
                                 }
+
                                 $premium = $get('../../premium_amount');
-                                $set('amount', $premium !== null ? number_format((float) $premium, 2, '.', '') : number_format(0, 2, '.', ''));
+
+                                $set(
+                                    'amount',
+                                    $premium !== null
+                                        ? number_format((float) $premium, 2, '.', '')
+                                        : number_format(0, 2, '.', '')
+                                );
                             })
                             ->dehydrateStateUsing(function ($state, Get $get) {
                                 $val = $get('../../premium_amount');
-                                return $val !== null && $val !== '' ? number_format((float) $val, 2, '.', '') : number_format(0, 2, '.', '');
+
+                                return $val !== null && $val !== ''
+                                    ? number_format((float) $val, 2, '.', '')
+                                    : number_format(0, 2, '.', '');
                             })
                             ->columnSpan(1),
                     ])

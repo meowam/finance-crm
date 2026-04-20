@@ -38,6 +38,16 @@ class ClientResource extends Resource
         return 'Клієнти';
     }
 
+    public static function canViewAny(): bool
+    {
+        return Auth::user()?->can('viewAny', Client::class) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return Auth::user()?->can('create', Client::class) ?? false;
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ClientForm::configure($schema);
@@ -60,21 +70,12 @@ class ClientResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        $query = parent::getEloquentQuery();
-
-        if ($user instanceof User && $user->isManager()) {
-            $query->where('assigned_user_id', $user->id);
-        }
-
-        return $query;
+        return parent::getEloquentQuery()->visibleTo($user);
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $user instanceof User;
+        return static::canViewAny();
     }
 
     public static function getPages(): array

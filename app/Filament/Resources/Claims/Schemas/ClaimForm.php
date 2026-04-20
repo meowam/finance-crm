@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Claims\Schemas;
 
+use App\Models\Policy;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\DateTimePicker;
@@ -49,11 +50,8 @@ class ClaimForm
                             /** @var User|null $user */
                             $user = Auth::user();
 
-                            $query->where('status', 'active');
-
-                            if ($user instanceof User && $user->isManager()) {
-                                $query->where('agent_id', $user->id);
-                            }
+                            $query->visibleTo($user)
+                                ->where('status', 'active');
                         }
                     )
                     ->searchable()
@@ -174,7 +172,7 @@ class ClaimForm
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
                         $set('amount_claimed', $clean);
                     })
-                    ->rules(['regex:/^\\d+(?:[.,]\\d{0,2})?$/'])
+                    ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
                     ->dehydrateStateUsing(fn ($state) => $state !== null ? str_replace(',', '.', $state) : $state)
                     ->columnSpan(1)
                     ->validationMessages([
@@ -197,7 +195,7 @@ class ClaimForm
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
                         $set('amount_reserve', $clean);
                     })
-                    ->rules(['regex:/^\\d+(?:[.,]\\d{0,2})?$/'])
+                    ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
                     ->dehydrateStateUsing(fn ($state) => $state !== null ? str_replace(',', '.', $state) : $state)
                     ->columnSpan(1)
                     ->validationMessages([
@@ -218,7 +216,7 @@ class ClaimForm
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
                         $set('amount_paid', $clean);
                     })
-                    ->rules(['regex:/^\\d+(?:[.,]\\d{0,2})?$/'])
+                    ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
                     ->dehydrateStateUsing(fn ($state) => $state !== null ? str_replace(',', '.', $state) : $state)
                     ->hiddenOn(CreateRecord::class)
                     ->columnSpan(1)

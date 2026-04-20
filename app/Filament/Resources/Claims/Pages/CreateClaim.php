@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Claims\Pages;
 
 use App\Filament\Resources\Claims\ClaimResource;
+use App\Models\Claim;
 use App\Models\Policy;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -49,15 +50,15 @@ class CreateClaim extends CreateRecord
         /** @var User|null $user */
         $user = Auth::user();
 
+        abort_unless($user?->can('create', Claim::class), 403);
+
         $data['reported_by_id'] = $user?->id;
 
-        if ($user instanceof User && $user->isManager()) {
-            if (! empty($data['policy_id'])) {
-                $policy = Policy::query()->find($data['policy_id']);
+        if (! empty($data['policy_id'])) {
+            $policy = Policy::query()->find($data['policy_id']);
 
-                if (! $policy || (int) $policy->agent_id !== (int) $user->id) {
-                    abort(403);
-                }
+            if (! $policy || ! $policy->isVisibleTo($user)) {
+                abort(403);
             }
         }
 
