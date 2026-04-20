@@ -66,14 +66,7 @@ class CreatePolicy extends CreateRecord
             }
         }
 
-        $state = $this->form->getState();
-        $payments = $state['payments'] ?? ($data['payments'] ?? []);
-
-        if (! empty($payments)) {
-            $first = $payments[0] ?? null;
-            $paymentStatus = $first['status'] ?? 'draft';
-            $data['status'] = $paymentStatus === 'paid' ? 'active' : 'draft';
-        } else {
+        if (blank($data['status'] ?? null)) {
             $data['status'] = 'draft';
         }
 
@@ -106,25 +99,17 @@ class CreatePolicy extends CreateRecord
 
         $payment = $policy->payments()->latest('id')->first();
 
-        if ($payment) {
-            $policy->forceFill([
-                'status' => ($payment->status->value === 'paid') ? 'active' : 'draft',
-            ])->save();
+        if (! $payment) {
+            $base = $policy->effective_date ?: now()->toDateString();
 
-            return;
+            $policy->payments()->create([
+                'amount'   => $policy->premium_amount,
+                'method'   => 'no_method',
+                'status'   => 'draft',
+                'due_date' => Carbon::parse($base)->addDays(7)->toDateString(),
+            ]);
         }
 
-        $base = $policy->effective_date ?: now()->toDateString();
-
-        $policy->payments()->create([
-            'amount'   => $policy->premium_amount,
-            'method'   => 'no_method',
-            'status'   => 'draft',
-            'due_date' => Carbon::parse($base)->addDays(7)->toDateString(),
-        ]);
-
-        $policy->forceFill([
-            'status' => 'draft',
-        ])->save();
+        $policy->refresh()->recomputeStatus();
     }
 }

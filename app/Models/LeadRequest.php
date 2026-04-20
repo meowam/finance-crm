@@ -7,50 +7,34 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Client extends Model
+class LeadRequest extends Model
 {
     use HasFactory, LogsActivity;
 
     protected $fillable = [
         'type',
-        'status',
         'first_name',
         'last_name',
         'middle_name',
         'company_name',
-        'primary_email',
-        'primary_phone',
-        'document_number',
-        'tax_id',
-        'date_of_birth',
-        'preferred_contact_method',
-        'city',
-        'address_line',
+        'phone',
+        'email',
+        'interest',
         'source',
+        'status',
+        'comment',
         'assigned_user_id',
-        'notes',
+        'converted_client_id',
     ];
-
-    protected $dates = ['date_of_birth', 'deleted_at'];
-
-    protected $appends = [
-        'display_label',
-        'full_name',
-    ];
-
-    public function contacts()
-    {
-        return $this->hasMany(ClientContact::class);
-    }
-
-    public function policies()
-    {
-        return $this->hasMany(Policy::class);
-    }
 
     public function assignedUser()
     {
         return $this->belongsTo(User::class, 'assigned_user_id');
+    }
+
+    public function convertedClient()
+    {
+        return $this->belongsTo(Client::class, 'converted_client_id');
     }
 
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
@@ -96,40 +80,15 @@ class Client extends Model
 
     public function getDisplayLabelAttribute(): string
     {
-        $chunks = [];
-
         if ($this->type === 'company' && filled($this->company_name)) {
-            $chunks[] = trim((string) $this->company_name);
-
-            $contactName = $this->full_name !== '—' ? $this->full_name : null;
-            if ($contactName) {
-                $chunks[] = 'контакт: ' . $contactName;
-            }
-        } else {
-            $chunks[] = $this->full_name;
+            return $this->company_name;
         }
 
-        if (filled($this->primary_phone)) {
-            $chunks[] = $this->primary_phone;
-        }
-
-        if (filled($this->primary_email)) {
-            $chunks[] = $this->primary_email;
-        }
-
-        if (filled($this->tax_id)) {
-            $chunks[] = $this->tax_id;
-        }
-
-        return implode(' · ', array_filter($chunks, fn ($value) => filled($value)));
+        return $this->full_name !== '—' ? $this->full_name : ('Lead #' . $this->id);
     }
 
     public function getActivityLogLabel(): string
     {
-        if ($this->type === 'company' && filled($this->company_name)) {
-            return (string) $this->company_name;
-        }
-
-        return $this->full_name !== '—' ? $this->full_name : 'Клієнт #' . $this->id;
+        return $this->display_label;
     }
 }

@@ -97,13 +97,14 @@ class PolicyForm
                         return InsuranceOffer::query()
                             ->with(['insuranceProduct:id,name', 'insuranceCompany:id,name'])
                             ->get()
-                            ->mapWithKeys(function ($o) {
-                                $prod = $o->insuranceProduct?->name ?? 'Продукт';
-                                $comp = $o->insuranceCompany?->name ?? 'Компанія';
-                                $dur  = (int) $o->duration_months;
-                                $label = "{$prod} — {$o->offer_name} — {$comp} — {$dur} міс.";
+                            ->mapWithKeys(function ($offer) {
+                                $product = $offer->insuranceProduct?->name ?? 'Продукт';
+                                $company = $offer->insuranceCompany?->name ?? 'Компанія';
+                                $duration = (int) $offer->duration_months;
 
-                                return [$o->id => $label];
+                                return [
+                                    $offer->id => "{$product} — {$offer->offer_name} — {$company} — {$duration} міс.",
+                                ];
                             })
                             ->toArray();
                     })
@@ -138,17 +139,20 @@ class PolicyForm
 
                         if ($offer) {
                             $base = (float) $offer->price * (int) $offer->duration_months;
-                            $prem = $base + ($base * ($rate / 100));
-                            $set('premium_amount', number_format($prem, 2, '.', ''));
+                            $premium = $base + ($base * ($rate / 100));
+                            $set('premium_amount', number_format($premium, 2, '.', ''));
                         } else {
                             $set('premium_amount', null);
                         }
 
-                        $eff = $get('effective_date');
+                        $effectiveDate = $get('effective_date');
 
-                        if ($offer && $eff) {
-                            $exp = Carbon::parse($eff)->addMonths((int) $offer->duration_months)->format('Y-m-d');
-                            $set('expiration_date', $exp);
+                        if ($offer && $effectiveDate) {
+                            $expiration = Carbon::parse($effectiveDate)
+                                ->addMonths((int) $offer->duration_months)
+                                ->format('Y-m-d');
+
+                            $set('expiration_date', $expiration);
                         }
                     })
                     ->afterStateHydrated(function ($state, callable $set, $record) {
@@ -159,11 +163,11 @@ class PolicyForm
                         $offer = $state ? InsuranceOffer::find($state) : null;
 
                         if ($offer && $record->effective_date) {
-                            $exp = Carbon::parse($record->effective_date)
+                            $expiration = Carbon::parse($record->effective_date)
                                 ->addMonths((int) $offer->duration_months)
                                 ->format('Y-m-d');
 
-                            $set('expiration_date', $exp);
+                            $set('expiration_date', $expiration);
                         }
                     })
                     ->columnSpan(1),
@@ -239,23 +243,9 @@ class PolicyForm
                         'canceled'  => 'скасовано',
                     ])
                     ->native(false)
-                    ->required()
-                    ->default('draft')
-                    ->rules(['required', 'in:draft,active,completed,canceled'])
                     ->disabled()
                     ->dehydrated(true)
-                    ->reactive()
-                    ->afterStateHydrated(function ($state, callable $set, callable $get) {
-                        $paymentStatus = $get('payments.0.status') ?? 'draft';
-
-                        $policyStatus = match ($paymentStatus) {
-                            'paid' => 'active',
-                            'scheduled', 'draft' => 'draft',
-                            default => 'draft',
-                        };
-
-                        $set('status', $policyStatus);
-                    })
+                    ->default('draft')
                     ->columnSpan(1),
 
                 DatePicker::make('effective_date')
@@ -272,8 +262,11 @@ class PolicyForm
                         $offer   = $offerId ? InsuranceOffer::find($offerId) : null;
 
                         if ($offer && $state) {
-                            $exp = Carbon::parse($state)->addMonths((int) $offer->duration_months)->format('Y-m-d');
-                            $set('expiration_date', $exp);
+                            $expiration = Carbon::parse($state)
+                                ->addMonths((int) $offer->duration_months)
+                                ->format('Y-m-d');
+
+                            $set('expiration_date', $expiration);
                         }
 
                         if ($state) {
@@ -348,17 +341,17 @@ class PolicyForm
 
                         $base = (float) $offer->price * (int) $offer->duration_months;
                         $rate = (float) ($state ?? 0);
-                        $prem = $base + ($base * ($rate / 100));
+                        $premium = $base + ($base * ($rate / 100));
 
-                        $set('premium_amount', number_format($prem, 2, '.', ''));
-                        $set('payments.0.amount', number_format($prem, 2, '.', ''));
+                        $set('premium_amount', number_format($premium, 2, '.', ''));
+                        $set('payments.0.amount', number_format($premium, 2, '.', ''));
                     })
                     ->columnSpan(1),
 
                 Textarea::make('notes')
                     ->label('Нотатки')
                     ->rows(3)
-                    ->dehydrateStateUsing(fn ($s) => filled($s) ? $s : null)
+                    ->dehydrateStateUsing(fn ($state) => filled($state) ? $state : null)
                     ->columnSpanFull(),
 
                 Repeater::make('payments')
@@ -391,9 +384,6 @@ class PolicyForm
                                 };
 
                                 $set('status', $paymentStatus);
-
-                                $policyStatus = $paymentStatus === 'paid' ? 'active' : 'draft';
-                                $set('../../status', $policyStatus);
                             })
                             ->columnSpan(1),
 
@@ -417,14 +407,6 @@ class PolicyForm
                                 };
 
                                 $set('status', $paymentStatus);
-
-                                $policyStatus = $paymentStatus === 'paid' ? 'active' : 'draft';
-                                $set('../../status', $policyStatus);
-                            })
-                            ->reactive()
-                            ->afterStateUpdated(function ($state, callable $set) {
-                                $policyStatus = $state === 'paid' ? 'active' : 'draft';
-                                $set('../../status', $policyStatus);
                             })
                             ->columnSpan(1),
 
@@ -436,15 +418,15 @@ class PolicyForm
                             ->readOnly()
                             ->required()
                             ->default(function (Get $get) {
-                                $eff = $get('../../effective_date');
-                                $base = $eff ? Carbon::parse($eff) : now();
+                                $effectiveDate = $get('../../effective_date');
+                                $base = $effectiveDate ? Carbon::parse($effectiveDate) : now();
 
                                 return $base->copy()->addDays(7)->toDateString();
                             })
                             ->afterStateHydrated(function ($state, callable $set, Get $get) {
                                 if (blank($state)) {
-                                    $eff = $get('../../effective_date');
-                                    $base = $eff ? Carbon::parse($eff) : now();
+                                    $effectiveDate = $get('../../effective_date');
+                                    $base = $effectiveDate ? Carbon::parse($effectiveDate) : now();
                                     $set('due_date', $base->copy()->addDays(7)->toDateString());
                                 }
                             })
@@ -473,10 +455,10 @@ class PolicyForm
                                 );
                             })
                             ->dehydrateStateUsing(function ($state, Get $get) {
-                                $val = $get('../../premium_amount');
+                                $value = $get('../../premium_amount');
 
-                                return $val !== null && $val !== ''
-                                    ? number_format((float) $val, 2, '.', '')
+                                return $value !== null && $value !== ''
+                                    ? number_format((float) $value, 2, '.', '')
                                     : number_format(0, 2, '.', '');
                             })
                             ->columnSpan(1),

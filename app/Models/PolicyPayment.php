@@ -4,13 +4,14 @@ namespace App\Models;
 
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
-use App\Enums\PolicyStatus;
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 class PolicyPayment extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'policy_id',
@@ -33,95 +34,89 @@ class PolicyPayment extends Model
         'method' => PaymentMethod::class,
     ];
 
-    public function policy() { return $this->belongsTo(Policy::class); }
+    public function policy()
+    {
+        return $this->belongsTo(Policy::class);
+    }
 
     protected static function booted(): void
     {
-        static::creating(function (PolicyPayment $m) {
-            if (blank($m->transaction_reference)) {
-                do { $ref = 'TRX' . str_pad((string) random_int(0, 9_999_999), 7, '0', STR_PAD_LEFT); }
-                while (self::where('transaction_reference', $ref)->exists());
-                $m->transaction_reference = $ref;
+        static::creating(function (PolicyPayment $model) {
+            if (blank($model->transaction_reference)) {
+                do {
+                    $ref = 'TRX' . str_pad((string) random_int(0, 9_999_999), 7, '0', STR_PAD_LEFT);
+                } while (self::where('transaction_reference', $ref)->exists());
+
+                $model->transaction_reference = $ref;
             }
         });
 
-        static::saving(function (PolicyPayment $m) {
-            $method = $m->method instanceof PaymentMethod ? $m->method->value : $m->method;
-            $status = $m->status instanceof PaymentStatus ? $m->status->value : $m->status;
+        static::saving(function (PolicyPayment $model) {
+            $method = $model->method instanceof PaymentMethod ? $model->method->value : $model->method;
+            $status = $model->status instanceof PaymentStatus ? $model->status->value : $model->status;
 
             $allowed = match ($method) {
                 'cash', 'card' => ['paid', 'canceled'],
-                'transfer' => ['scheduled', 'paid', 'canceled', 'overdue'],
-                'no_method' => ['draft', 'overdue', 'canceled'],
-                default => [],
+                'transfer'     => ['scheduled', 'paid', 'canceled', 'overdue'],
+                'no_method'    => ['draft', 'overdue', 'canceled'],
+                default        => [],
             };
-            if (!in_array($status, $allowed, true)) {
+
+            if (! in_array($status, $allowed, true)) {
                 throw new \InvalidArgumentException('Invalid status for method');
             }
 
-            if (blank($m->due_date)) {
-                $m->due_date = now()->addDays(rand(5,7))->toDateString();
+            if (blank($model->due_date)) {
+                $base = $model->policy?->effective_date ?: now()->toDateString();
+                $model->due_date = Carbon::parse($base)->addDays(7)->toDateString();
             }
 
-            if (in_array($method, ['cash', 'card']) && $status === 'paid' && blank($m->paid_at)) {
-                $m->paid_at = now();
+            if (in_array($method, ['cash', 'card'], true) && $status === 'paid' && blank($model->paid_at)) {
+                $model->paid_at = now();
             }
 
-            if ($method === 'transfer' && blank($m->initiated_at)) {
-                $m->initiated_at = now();
+            if ($method === 'transfer' && blank($model->initiated_at)) {
+                $model->initiated_at = now();
             }
 
-            if (in_array($status, ['paid','scheduled'], true)) {
+            if (in_array($status, ['paid', 'scheduled'], true)) {
                 $existsBlocking = self::query()
-                    ->where('policy_id', $m->policy_id)
-                    ->whereIn('status', ['paid','scheduled'])
-                    ->when($m->exists, fn($q) => $q->where('id', '!=', $m->id))
+                    ->where('policy_id', $model->policy_id)
+                    ->whereIn('status', ['paid', 'scheduled'])
+                    ->when($model->exists, fn ($q) => $q->where('id', '!=', $model->id))
                     ->exists();
+
                 if ($existsBlocking) {
                     throw new \RuntimeException('Another blocking payment exists for this policy');
                 }
             }
         });
 
-        static::saved(function (PolicyPayment $m) {
-            $policy = $m->policy;
-            if (!$policy) return;
+        static::saved(function (PolicyPayment $model) {
+            $policy = $model->policy;
 
-            if ($m->status === PaymentStatus::Paid) {
-                if ($policy->expiration_date && now()->greaterThanOrEqualTo($policy->expiration_date)) {
-                    $policy->status = PolicyStatus::Completed;
-                } else {
-                    if (!in_array($policy->status->value, [PolicyStatus::Completed->value, PolicyStatus::Canceled->value], true)) {
-                        $policy->status = PolicyStatus::Active;
-                    }
-                }
-                $policy->saveQuietly();
+            if (! $policy) {
                 return;
             }
 
-            if ($m->status === PaymentStatus::Canceled) {
-                if ($policy->payment_due_at && now()->isAfter($policy->payment_due_at) &&
-                    !$policy->payments()->where('status', PaymentStatus::Paid->value)->exists()) {
-                    $policy->status = PolicyStatus::Canceled;
-                } else {
-                    $policy->status = PolicyStatus::Draft;
-                }
-                $policy->saveQuietly();
-                return;
-            }
-
-            if ($m->status === PaymentStatus::Overdue) {
-                if (!$policy->payments()->where('status', PaymentStatus::Paid->value)->exists()) {
-                    $policy->status = PolicyStatus::Canceled;
-                    $policy->saveQuietly();
-                }
-                return;
-            }
-
-            if ($m->status === PaymentStatus::Scheduled) {
-                $policy->status = PolicyStatus::Draft;
-                $policy->saveQuietly();
-            }
+            $policy->refresh()->recomputeStatus();
         });
+
+        static::deleted(function (PolicyPayment $model) {
+            $policy = $model->policy;
+
+            if (! $policy) {
+                return;
+            }
+
+            $policy->refresh()->recomputeStatus();
+        });
+    }
+
+    public function getActivityLogLabel(): string
+    {
+        $policyNumber = $this->policy?->policy_number ?: ('policy #' . $this->policy_id);
+
+        return "Оплата {$policyNumber}";
     }
 }

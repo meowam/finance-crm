@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Clients\Tables;
 
 use App\Filament\Resources\Policies\PolicyResource;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\Client;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteBulkAction;
@@ -25,8 +26,10 @@ class ClientsTable
                 /** @var User|null $user */
                 $user = Auth::user();
 
-                if ($user instanceof User && $user->isManager()) {
-                    $query->where('assigned_user_id', $user->id);
+                if ($user instanceof User) {
+                    $query->visibleTo($user);
+                } else {
+                    $query->whereRaw('1 = 0');
                 }
             })
             ->columns([
@@ -249,7 +252,7 @@ class ClientsTable
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return $user instanceof User && ! $user->isManager();
+                        return $user instanceof User && $user->can('deleteAny', Client::class);
                     }),
             ]);
     }

@@ -4,14 +4,16 @@ namespace App\Models;
 
 use App\Enums\PaymentStatus;
 use App\Enums\PolicyStatus;
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 
 class Policy extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     public static bool $suppressAutoDraft = false;
 
@@ -98,61 +100,86 @@ class Policy extends Model
 
     protected static function booted(): void
     {
-        static::creating(function (Policy $m) {
-            if (! filled($m->policy_number)) {
+        static::creating(function (Policy $model) {
+            if (! filled($model->policy_number)) {
                 do {
                     $candidate = 'POL-' . Str::upper(Str::random(10));
                 } while (self::where('policy_number', $candidate)->exists());
 
-                $m->policy_number = $candidate;
+                $model->policy_number = $candidate;
             }
 
-            if (blank($m->status)) {
-                $m->status = PolicyStatus::Draft->value;
+            if (blank($model->status)) {
+                $model->status = PolicyStatus::Draft->value;
             }
 
-            if (blank($m->payment_due_at)) {
-                $base = $m->effective_date ?: now()->toDateString();
-                $m->payment_due_at = \Illuminate\Support\Carbon::parse($base)->addDays(7);
+            if (blank($model->payment_due_at)) {
+                $base = $model->effective_date ?: now()->toDateString();
+                $model->payment_due_at = Carbon::parse($base)->addDays(7);
             }
         });
 
-        static::created(function (Policy $m) {
+        static::created(function (Policy $model) {
             if (self::$suppressAutoDraft) {
                 return;
             }
 
-            $base = $m->effective_date ?: now()->toDateString();
+            $base = $model->effective_date ?: now()->toDateString();
 
-            $m->payments()->create([
-                'amount'   => $m->premium_amount,
+            $model->payments()->create([
+                'amount'   => $model->premium_amount,
                 'method'   => 'no_method',
                 'status'   => 'draft',
-                'due_date' => \Illuminate\Support\Carbon::parse($base)->addDays(7)->toDateString(),
+                'due_date' => Carbon::parse($base)->addDays(7)->toDateString(),
             ]);
+
+            $model->refresh()->recomputeStatus();
+        });
+
+        static::saved(function (Policy $model) {
+            if ($model->wasChanged(['effective_date']) && filled($model->effective_date)) {
+                $newDueDate = Carbon::parse($model->effective_date)->addDays(7)->toDateString();
+
+                if (
+                    blank($model->payment_due_at) ||
+                    $model->payment_due_at?->toDateString() !== $newDueDate
+                ) {
+                    $model->forceFill([
+                        'payment_due_at' => $newDueDate,
+                    ])->saveQuietly();
+                }
+            }
         });
     }
 
     public function recomputeStatus(): void
     {
-        $hasPaid = $this->payments()->where('status', PaymentStatus::Paid->value)->exists();
+        $hasPaid = $this->payments()
+            ->where('status', PaymentStatus::Paid->value)
+            ->exists();
 
-        if ($hasPaid) {
-            if ($this->expiration_date && now()->greaterThanOrEqualTo($this->expiration_date)) {
-                $this->status = PolicyStatus::Completed;
-            } else {
-                if (! in_array($this->status->value, [PolicyStatus::Completed->value, PolicyStatus::Canceled->value], true)) {
-                    $this->status = PolicyStatus::Active;
-                }
-            }
-        } else {
-            if ($this->payment_due_at && now()->isAfter($this->payment_due_at)) {
-                $this->status = PolicyStatus::Canceled;
-            } else {
-                $this->status = PolicyStatus::Draft;
-            }
+        $newStatus = match (true) {
+            $hasPaid && $this->expiration_date && now()->greaterThanOrEqualTo($this->expiration_date)
+                => PolicyStatus::Completed,
+
+            $hasPaid
+                => PolicyStatus::Active,
+
+            $this->payment_due_at && now()->isAfter($this->payment_due_at)
+                => PolicyStatus::Canceled,
+
+            default
+                => PolicyStatus::Draft,
+        };
+
+        if ($this->status !== $newStatus) {
+            $this->status = $newStatus;
+            $this->saveQuietly();
         }
+    }
 
-        $this->saveQuietly();
+    public function getActivityLogLabel(): string
+    {
+        return $this->policy_number ?: 'Поліс #' . $this->id;
     }
 }

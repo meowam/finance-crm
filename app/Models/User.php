@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -10,7 +11,7 @@ use Filament\Models\Contracts\HasName;
 
 class User extends Authenticatable implements FilamentUser, HasName
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, LogsActivity;
 
     protected $fillable = [
         'name',
@@ -34,7 +35,7 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     public function canAccessPanel(\Filament\Panel $panel): bool
     {
-        return $this->is_active && in_array($this->role, ['admin','supervisor','manager']);
+        return $this->is_active && in_array($this->role, ['admin', 'supervisor', 'manager']);
     }
 
     public function getFilamentName(): string
@@ -80,5 +81,10 @@ class User extends Authenticatable implements FilamentUser, HasName
             'manager' => 'Менеджер',
             default => 'Невідомо',
         };
+    }
+
+    public function getActivityLogLabel(): string
+    {
+        return "{$this->name} ({$this->email})";
     }
 }

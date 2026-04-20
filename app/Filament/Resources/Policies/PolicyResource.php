@@ -29,12 +29,26 @@ class PolicyResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return Auth::user()?->can('viewAny', Policy::class) ?? false;
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        return $user->can('viewAny', Policy::class);
     }
 
     public static function canCreate(): bool
     {
-        return Auth::user()?->can('create', Policy::class) ?? false;
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        return $user->can('create', Policy::class);
     }
 
     public static function form(Schema $schema): Schema
@@ -49,9 +63,7 @@ class PolicyResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getEloquentQuery(): Builder

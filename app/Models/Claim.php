@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\Policy;
+use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,7 +10,7 @@ use Illuminate\Support\Str;
 
 class Claim extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
         'claim_number',
@@ -34,7 +34,7 @@ class Claim extends Model
 
     public function reportedBy()
     {
-        return $this->belongsTo(\App\Models\User::class, 'reported_by_id');
+        return $this->belongsTo(User::class, 'reported_by_id');
     }
 
     public function policy()
@@ -102,5 +102,10 @@ class Claim extends Model
                 $model->amount_paid = 0.00;
             }
         });
+    }
+
+    public function getActivityLogLabel(): string
+    {
+        return $this->claim_number ?: 'Заява #' . $this->id;
     }
 }

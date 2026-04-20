@@ -37,6 +37,7 @@ class PoliciesTable
                 $user = Auth::user();
 
                 $query
+                    ->visibleTo($user)
                     ->with([
                         'client:id,primary_email,first_name,last_name,middle_name,company_name,type',
                         'insuranceOffer.insuranceProduct:id,name',
@@ -50,10 +51,6 @@ class PoliciesTable
                             ->orderByDesc('lp.id')
                             ->limit(1),
                     ]);
-
-                if ($user instanceof User && $user->isManager()) {
-                    $query->where('agent_id', $user->id);
-                }
             })
             ->defaultPaginationPageOption(25)
             ->columns([
@@ -275,10 +272,7 @@ class PoliciesTable
                         $user = Auth::user();
 
                         return Client::query()
-                            ->when(
-                                $user instanceof User && $user->isManager(),
-                                fn (EloquentBuilder $query) => $query->where('assigned_user_id', $user->id)
-                            )
+                            ->visibleTo($user)
                             ->orderBy('last_name')
                             ->orderBy('first_name')
                             ->limit(100)
@@ -299,7 +293,7 @@ class PoliciesTable
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return $user instanceof User && ! $user->isManager();
+                        return $user instanceof User && $user->can('deleteAny', Policy::class);
                     }),
             ]);
     }

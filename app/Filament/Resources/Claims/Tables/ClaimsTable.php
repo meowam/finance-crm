@@ -22,8 +22,12 @@ class ClaimsTable
                 /** @var User|null $user */
                 $user = Auth::user();
 
-                if ($user instanceof User && $user->isManager()) {
-                    $query->where('reported_by_id', $user->id);
+                $query->with(['policy', 'reportedBy']);
+
+                if ($user instanceof User) {
+                    $query->visibleTo($user);
+                } else {
+                    $query->whereRaw('1 = 0');
                 }
             })
             ->defaultSort('reported_at', 'desc')
@@ -75,7 +79,7 @@ class ClaimsTable
                     ->searchable(),
 
                 TextColumn::make('reportedBy.name')
-                    ->label('Менеджер')
+                    ->label('Хто зареєстрував')
                     ->url(fn (Claim $record) => UserResource::getUrl('edit', ['record' => $record->reported_by_id]))
                     ->openUrlInNewTab()
                     ->searchable()
@@ -125,7 +129,7 @@ class ClaimsTable
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return $user instanceof User && ! $user->isManager();
+                        return $user instanceof User && $user->can('deleteAny', Claim::class);
                     }),
             ]);
     }

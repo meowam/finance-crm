@@ -53,25 +53,25 @@ class CreateClient extends CreateRecord
         }
 
         $duplicates = Client::query()
-    ->when(
-        $user?->isManager(),
-        fn (Builder $query) => $query->visibleTo($user)
-    )
-    ->where(function (Builder $query) use ($data) {
-        if (filled($data['primary_email'] ?? null)) {
-            $query->orWhere('primary_email', $data['primary_email']);
-        }
+            ->when(
+                $user?->isManager(),
+                fn (Builder $query) => $query->visibleTo($user)
+            )
+            ->where(function (Builder $query) use ($data) {
+                if (filled($data['primary_email'] ?? null)) {
+                    $query->orWhere('primary_email', $data['primary_email']);
+                }
 
-        if (filled($data['primary_phone'] ?? null)) {
-            $query->orWhere('primary_phone', $data['primary_phone']);
-        }
+                if (filled($data['primary_phone'] ?? null)) {
+                    $query->orWhere('primary_phone', $data['primary_phone']);
+                }
 
-        if (filled($data['document_number'] ?? null)) {
-            $query->orWhere('document_number', $data['document_number']);
-        }
-    })
-    ->limit(3)
-    ->get();
+                if (filled($data['document_number'] ?? null)) {
+                    $query->orWhere('document_number', $data['document_number']);
+                }
+            })
+            ->limit(3)
+            ->get();
 
         if ($duplicates->isNotEmpty()) {
             $body = $duplicates
