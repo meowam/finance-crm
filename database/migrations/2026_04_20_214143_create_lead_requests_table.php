@@ -23,13 +23,21 @@ return new class extends Migration
             $table->string('email')->nullable();
 
             $table->string('interest')->nullable();
+
             $table->string('source')->default('online'); // office | online | recommendation | landing | other
             $table->string('status')->default('new'); // new | in_progress | converted | rejected
 
             $table->text('comment')->nullable();
 
-            $table->foreignId('assigned_user_id')->nullable()->constrained('users')->nullOnDelete();
-            $table->foreignId('converted_client_id')->nullable()->constrained('clients')->nullOnDelete();
+            $table->foreignId('assigned_user_id')
+                ->nullable()
+                ->constrained('users')
+                ->nullOnDelete();
+
+            $table->foreignId('converted_client_id')
+                ->nullable()
+                ->constrained('clients')
+                ->nullOnDelete();
 
             $table->timestamps();
 
