@@ -2,10 +2,12 @@
 
 namespace App\Services\Policies;
 
-use App\Models\Policy;
-use App\Models\PolicyPayment;
 use App\Enums\PaymentStatus;
 use App\Enums\PolicyStatus;
+use App\Models\Policy;
+use App\Models\PolicyPayment;
+use App\Models\User;
+use App\Notifications\OverduePaymentNotification;
 use Illuminate\Support\Facades\DB;
 
 class PolicyDailyService
@@ -13,31 +15,66 @@ class PolicyDailyService
     public function run(float $rate): void
     {
         DB::transaction(function () use ($rate) {
-            $this->markOverdueTransfer();
-            $this->markOverdueNoMethod();
+            $newOverdueIds = array_merge(
+                $this->markOverdueTransfer(),
+                $this->markOverdueNoMethod(),
+            );
+
             $this->cancelPoliciesWithoutPaid();
             $this->randomizeScheduledToPaid($rate);
             $this->activateOrCompletePaidPolicies();
+
+            $this->notifyOverduePayments($newOverdueIds);
         }, 3);
     }
 
-    protected function markOverdueTransfer(): void
+    protected function markOverdueTransfer(): array
     {
-        DB::table('policy_payments')
+        $ids = DB::table('policy_payments')
             ->where('method', 'transfer')
             ->where('status', 'scheduled')
             ->whereDate('due_date', '<', now()->toDateString())
-            ->update(['status' => 'overdue', 'updated_at' => now()]);
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        DB::table('policy_payments')
+            ->whereIn('id', $ids)
+            ->update([
+                'status' => 'overdue',
+                'updated_at' => now(),
+            ]);
+
+        return $ids;
     }
 
-    protected function markOverdueNoMethod(): void
+    protected function markOverdueNoMethod(): array
     {
-        DB::table('policy_payments as pp')
+        $ids = DB::table('policy_payments as pp')
             ->join('policies as p', 'p.id', '=', 'pp.policy_id')
             ->where('pp.method', 'no_method')
             ->where('pp.status', 'draft')
             ->whereDate('p.payment_due_at', '<', now()->toDateString())
-            ->update(['pp.status' => 'overdue', 'pp.updated_at' => now()]);
+            ->pluck('pp.id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        if ($ids === []) {
+            return [];
+        }
+
+        DB::table('policy_payments')
+            ->whereIn('id', $ids)
+            ->update([
+                'status' => 'overdue',
+                'updated_at' => now(),
+            ]);
+
+        return $ids;
     }
 
     protected function cancelPoliciesWithoutPaid(): void
@@ -46,11 +83,14 @@ class PolicyDailyService
             ->whereDate('p.payment_due_at', '<', now()->toDateString())
             ->whereNotExists(function ($q) {
                 $q->select(DB::raw(1))
-                  ->from('policy_payments as pp')
-                  ->whereColumn('pp.policy_id', 'p.id')
-                  ->where('pp.status', 'paid');
+                    ->from('policy_payments as pp')
+                    ->whereColumn('pp.policy_id', 'p.id')
+                    ->where('pp.status', 'paid');
             })
-            ->update(['p.status' => 'canceled', 'p.updated_at' => now()]);
+            ->update([
+                'p.status' => 'canceled',
+                'p.updated_at' => now(),
+            ]);
     }
 
     protected function randomizeScheduledToPaid(float $rate): void
@@ -70,15 +110,22 @@ class PolicyDailyService
         }
 
         shuffle($ids);
+
         $take = max(0, (int) ceil(count($ids) * $rate));
+
         if ($take === 0) {
             return;
         }
 
         $pick = array_slice($ids, 0, $take);
+
         DB::table('policy_payments')
             ->whereIn('id', $pick)
-            ->update(['status' => 'paid', 'paid_at' => now(), 'updated_at' => now()]);
+            ->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'updated_at' => now(),
+            ]);
     }
 
     protected function activateOrCompletePaidPolicies(): void
@@ -100,10 +147,13 @@ class PolicyDailyService
             ->pluck('id')
             ->all();
 
-        if (!empty($toComplete)) {
+        if (! empty($toComplete)) {
             DB::table('policies')
                 ->whereIn('id', $toComplete)
-                ->update(['status' => PolicyStatus::Completed->value, 'updated_at' => now()]);
+                ->update([
+                    'status' => PolicyStatus::Completed->value,
+                    'updated_at' => now(),
+                ]);
         }
 
         $toActivate = Policy::query()
@@ -113,10 +163,55 @@ class PolicyDailyService
             ->pluck('id')
             ->all();
 
-        if (!empty($toActivate)) {
+        if (! empty($toActivate)) {
             DB::table('policies')
                 ->whereIn('id', $toActivate)
-                ->update(['status' => PolicyStatus::Active->value, 'updated_at' => now()]);
+                ->update([
+                    'status' => PolicyStatus::Active->value,
+                    'updated_at' => now(),
+                ]);
+        }
+    }
+
+    protected function notifyOverduePayments(array $paymentIds): void
+    {
+        if ($paymentIds === []) {
+            return;
+        }
+
+        $payments = PolicyPayment::query()
+            ->with(['policy.client', 'policy.agent'])
+            ->whereIn('id', $paymentIds)
+            ->get();
+
+        foreach ($payments as $payment) {
+            $recipients = User::query()
+                ->where('is_active', true)
+                ->where(function ($query) use ($payment) {
+                    $query->whereIn('role', ['admin', 'supervisor']);
+
+                    if ($payment->policy?->agent_id) {
+                        $query->orWhere('id', $payment->policy->agent_id);
+                    }
+                })
+                ->get()
+                ->unique('id');
+
+            foreach ($recipients as $recipient) {
+                $alreadySent = DB::table('notifications')
+                    ->where('notifiable_type', User::class)
+                    ->where('notifiable_id', $recipient->id)
+                    ->where('type', OverduePaymentNotification::class)
+                    ->where('data->notification_type', 'payment_overdue')
+                    ->where('data->payment_id', $payment->id)
+                    ->exists();
+
+                if ($alreadySent) {
+                    continue;
+                }
+
+                $recipient->notify(new OverduePaymentNotification($payment));
+            }
         }
     }
 }

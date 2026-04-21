@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\LeadRequests\Tables;
 
 use App\Filament\Resources\Clients\ClientResource;
+use App\Models\Client;
 use App\Models\LeadRequest;
 use App\Models\User;
 use Filament\Actions\Action;
@@ -15,6 +16,19 @@ use Illuminate\Support\Facades\Auth;
 
 class LeadRequestsTable
 {
+    protected static function hasExistingClient(LeadRequest $record): bool
+    {
+        if (blank($record->converted_client_id)) {
+            return false;
+        }
+
+        if ($record->relationLoaded('convertedClient')) {
+            return $record->convertedClient !== null;
+        }
+
+        return Client::query()->whereKey($record->converted_client_id)->exists();
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -115,7 +129,7 @@ class LeadRequestsTable
                 Action::make('convertToClient')
                     ->label('Створити клієнта')
                     ->icon('heroicon-o-user-plus')
-                    ->visible(fn (LeadRequest $record) => $record->status !== 'converted')
+                    ->visible(fn (LeadRequest $record) => ! static::hasExistingClient($record))
                     ->url(function (LeadRequest $record): string {
                         return ClientResource::getUrl('create', [
                             'lead_request_id' => $record->id,
@@ -126,7 +140,7 @@ class LeadRequestsTable
                             'company_name' => $record->company_name,
                             'primary_email' => $record->email,
                             'primary_phone' => $record->phone,
-                            'source' => in_array($record->source, ['office', 'online', 'recommendation'], true)
+                            'source' => in_array($record->source, ['office', 'online', 'recommendation', 'landing', 'other'], true)
                                 ? $record->source
                                 : 'online',
                             'assigned_user_id' => $record->assigned_user_id,
@@ -137,7 +151,7 @@ class LeadRequestsTable
                 Action::make('openClient')
                     ->label('Відкрити клієнта')
                     ->icon('heroicon-o-user')
-                    ->visible(fn (LeadRequest $record) => filled($record->converted_client_id))
+                    ->visible(fn (LeadRequest $record) => static::hasExistingClient($record))
                     ->url(fn (LeadRequest $record) => ClientResource::getUrl('edit', ['record' => $record->converted_client_id]))
                     ->openUrlInNewTab(),
             ])
