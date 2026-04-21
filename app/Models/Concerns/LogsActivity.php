@@ -10,10 +10,15 @@ trait LogsActivity
 {
     protected static array $activitySnapshots = [];
 
+    protected static function shouldSkipActivityLogging(): bool
+    {
+        return app()->runningInConsole() && ! app()->runningUnitTests();
+    }
+
     public static function bootLogsActivity(): void
     {
         static::created(function (Model $model) {
-            if (app()->runningInConsole()) {
+            if (static::shouldSkipActivityLogging()) {
                 return;
             }
 
@@ -29,7 +34,7 @@ trait LogsActivity
         });
 
         static::updating(function (Model $model) {
-            if (app()->runningInConsole()) {
+            if (static::shouldSkipActivityLogging()) {
                 return;
             }
 
@@ -51,7 +56,7 @@ trait LogsActivity
         });
 
         static::updated(function (Model $model) {
-            if (app()->runningInConsole()) {
+            if (static::shouldSkipActivityLogging()) {
                 return;
             }
 
@@ -77,7 +82,7 @@ trait LogsActivity
         });
 
         static::deleting(function (Model $model) {
-            if (app()->runningInConsole()) {
+            if (static::shouldSkipActivityLogging()) {
                 return;
             }
 
@@ -88,7 +93,7 @@ trait LogsActivity
         });
 
         static::deleted(function (Model $model) {
-            if (app()->runningInConsole()) {
+            if (static::shouldSkipActivityLogging()) {
                 return;
             }
 

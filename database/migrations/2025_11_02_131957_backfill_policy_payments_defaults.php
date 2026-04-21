@@ -42,17 +42,29 @@ return new class extends Migration
             ->whereNull('initiated_at')
             ->update(['initiated_at' => now()]);
 
-        DB::statement("
-        UPDATE policy_payments
-        SET due_date =
-            COALESCE(
-                due_date,
-                DATE_ADD(
-                    COALESCE(initiated_at, created_at, NOW()),
-                    INTERVAL FLOOR(5 + RAND()*3) DAY
+        if (DB::getDriverName() === 'sqlite') {
+            DB::statement("
+                UPDATE policy_payments
+                SET due_date = COALESCE(
+                    due_date,
+                    date(COALESCE(initiated_at, created_at, CURRENT_TIMESTAMP), '+7 days')
                 )
-            )
-    ");
+            ");
+
+            return;
+        }
+
+        DB::statement("
+            UPDATE policy_payments
+            SET due_date =
+                COALESCE(
+                    due_date,
+                    DATE_ADD(
+                        COALESCE(initiated_at, created_at, NOW()),
+                        INTERVAL FLOOR(5 + RAND()*3) DAY
+                    )
+                )
+        ");
     }
 
     public function down(): void

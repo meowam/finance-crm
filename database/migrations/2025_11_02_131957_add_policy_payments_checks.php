@@ -6,6 +6,10 @@ use Illuminate\Support\Facades\DB;
 return new class extends Migration {
     public function up(): void
     {
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
         DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT IF EXISTS chk_pp_method");
         DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT IF EXISTS chk_pp_status");
         DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT IF EXISTS chk_pp_combo");
@@ -35,8 +39,12 @@ return new class extends Migration {
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT chk_pp_combo");
-        DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT chk_pp_status");
-        DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT chk_pp_method");
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
+        DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT IF EXISTS chk_pp_combo");
+        DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT IF EXISTS chk_pp_status");
+        DB::statement("ALTER TABLE policy_payments DROP CONSTRAINT IF EXISTS chk_pp_method");
     }
 };
