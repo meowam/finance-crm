@@ -115,7 +115,7 @@ class ClientForm
                     ->label('Основна ел. пошта')
                     ->email()
                     ->required()
-                    ->rules(['email:rfc,dns'])
+                    ->rules(['email'])
                     ->validationMessages([
                         'required' => 'Вкажіть електронну пошту.',
                         'email'    => 'Електронна пошта повинна бути у коректному форматі. Приклад: manager@company.com',

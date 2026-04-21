@@ -17,6 +17,39 @@ use Illuminate\Support\Facades\Auth;
 
 class PolicyPaymentForm
 {
+    protected static function resolveDueDate(?Policy $policy): string
+    {
+        if ($policy?->payment_due_at) {
+            return Carbon::parse($policy->payment_due_at)->toDateString();
+        }
+
+        $baseDate = $policy?->effective_date ?: now()->toDateString();
+
+        return Carbon::parse($baseDate)->addDays(7)->toDateString();
+    }
+
+    protected static function resolveAmount(?Policy $policy): string
+    {
+        if (! $policy) {
+            return number_format(0, 2, '.', '');
+        }
+
+        if ($policy->insuranceOffer) {
+            $offer = $policy->insuranceOffer;
+            $base = (float) $offer->price * (int) $offer->duration_months;
+            $rate = (float) ($policy->commission_rate ?? 0);
+            $final = round($base + ($base * ($rate / 100)), 2);
+
+            return number_format($final, 2, '.', '');
+        }
+
+        if ($policy->premium_amount !== null) {
+            return number_format((float) $policy->premium_amount, 2, '.', '');
+        }
+
+        return number_format(0, 2, '.', '');
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -34,7 +67,7 @@ class PolicyPaymentForm
                         return Policy::query()
                             ->select('id', 'policy_number')
                             ->where('status', 'draft')
-                            ->whereDoesntHave('payments', fn ($q) => $q->whereNotNull('blocking_policy_id'))
+                            ->whereDoesntHave('payments', fn ($q) => $q->whereIn('status', ['paid', 'scheduled']))
                             ->when(
                                 $user instanceof User && $user->isManager(),
                                 fn ($query) => $query->where('agent_id', $user->id)
@@ -51,7 +84,7 @@ class PolicyPaymentForm
                         return Policy::query()
                             ->select('id', 'policy_number')
                             ->where('status', 'draft')
-                            ->whereDoesntHave('payments', fn ($q) => $q->whereNotNull('blocking_policy_id'))
+                            ->whereDoesntHave('payments', fn ($q) => $q->whereIn('status', ['paid', 'scheduled']))
                             ->when(
                                 $user instanceof User && $user->isManager(),
                                 fn ($query) => $query->where('agent_id', $user->id)
@@ -75,27 +108,8 @@ class PolicyPaymentForm
                     ->afterStateUpdated(function ($state, callable $set) {
                         $policy = $state ? Policy::with('insuranceOffer')->find($state) : null;
 
-                        $due = now()->addDays(rand(5, 7))->format('Y-m-d');
-                        if ($policy?->effective_date) {
-                            $due = Carbon::parse($policy->created_at ?? now())
-                                ->addDays(rand(5, 7))
-                                ->format('Y-m-d');
-                        }
-                        $set('due_date', $due);
-
-                        $final = null;
-                        if ($policy && $policy->insuranceOffer) {
-                            $offer = $policy->insuranceOffer;
-                            $total = round((float) $offer->price * (int) $offer->duration_months, 2);
-                            $rate  = (float) ($policy->commission_rate ?? 0);
-                            $final = round($total + $total * ($rate / 100), 2);
-                        }
-
-                        if ($final === null && $policy?->premium_amount !== null) {
-                            $final = (float) $policy->premium_amount;
-                        }
-
-                        $set('amount', $final !== null ? number_format($final, 2, '.', '') : null);
+                        $set('due_date', self::resolveDueDate($policy));
+                        $set('amount', self::resolveAmount($policy));
                     })
                     ->disabled(fn ($record) => $record && in_array(
                         mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
@@ -117,8 +131,7 @@ class PolicyPaymentForm
                         $set('policy_number', $record?->policy?->policy_number ?? '—');
 
                         if (blank($get('due_date')) && $record?->policy) {
-                            $base = Carbon::parse($record->policy->created_at ?? now());
-                            $set('due_date', $base->copy()->addDays(rand(5, 7))->format('Y-m-d'));
+                            $set('due_date', self::resolveDueDate($record->policy));
                         }
                     })
                     ->visibleOn(EditRecord::class)
@@ -139,6 +152,20 @@ class PolicyPaymentForm
                     ->readOnly()
                     ->required()
                     ->rules(['required', 'date'])
+                    ->afterStateHydrated(function ($state, callable $set, $record, $get) {
+                        if (! blank($state)) {
+                            return;
+                        }
+
+                        $policy = null;
+                        $policyId = $record?->policy_id ?? $get('policy_id');
+
+                        if ($policyId) {
+                            $policy = Policy::find($policyId);
+                        }
+
+                        $set('due_date', self::resolveDueDate($policy));
+                    })
                     ->columnSpan(1),
 
                 TextInput::make('amount')
@@ -157,25 +184,19 @@ class PolicyPaymentForm
                             return;
                         }
 
-                        $policyId = $get('policy_id');
+                        $policy = null;
+                        $policyId = $record?->policy_id ?? $get('policy_id');
+
                         if ($policyId) {
                             $policy = Policy::with('insuranceOffer')->find($policyId);
-                            if ($policy && $policy->insuranceOffer) {
-                                $total = (float) $policy->insuranceOffer->price * (int) $policy->insuranceOffer->duration_months;
-                                $rate  = (float) ($policy->commission_rate ?? 0);
-                                $final = round($total + $total * ($rate / 100), 2);
-                                $set('amount', number_format($final, 2, '.', ''));
-                                return;
-                            }
-                            if ($policy?->premium_amount !== null) {
-                                $set('amount', number_format((float) $policy->premium_amount, 2, '.', ''));
-                                return;
-                            }
                         }
 
-                        $set('amount', number_format(0, 2, '.', ''));
+                        $set('amount', self::resolveAmount($policy));
                     })
-                    ->dehydrateStateUsing(fn ($state) => $state !== null && $state !== '' ? number_format((float) $state, 2, '.', '') : number_format(0, 2, '.', ''))
+                    ->dehydrateStateUsing(fn ($state) => $state !== null && $state !== ''
+                        ? number_format((float) $state, 2, '.', '')
+                        : number_format(0, 2, '.', '')
+                    )
                     ->disabled(fn ($record) => $record && in_array(
                         mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
                         ['paid', 'overdue'],
@@ -229,18 +250,18 @@ class PolicyPaymentForm
                 Select::make('status')
                     ->label('Статус')
                     ->options(fn ($get) => match ($get('method')) {
-                        'transfer'    => ['scheduled' => 'заплановано', 'paid' => 'сплачено', 'canceled' => 'скасовано'],
+                        'transfer'     => ['scheduled' => 'заплановано', 'paid' => 'сплачено', 'canceled' => 'скасовано'],
                         'card', 'cash' => ['paid' => 'сплачено', 'canceled' => 'скасовано'],
-                        'no_method'   => ['draft' => 'чернетка', 'canceled' => 'скасовано'],
-                        default       => ['draft' => 'чернетка'],
+                        'no_method'    => ['draft' => 'чернетка', 'canceled' => 'скасовано'],
+                        default        => ['draft' => 'чернетка'],
                     })
                     ->native(false)
                     ->required()
                     ->default(fn ($get) => match ($get('method')) {
-                        'transfer'    => 'scheduled',
+                        'transfer'     => 'scheduled',
                         'card', 'cash' => 'paid',
-                        'no_method'   => 'draft',
-                        default       => 'draft',
+                        'no_method'    => 'draft',
+                        default        => 'draft',
                     })
                     ->rules(['required', 'in:draft,scheduled,paid,overdue,canceled'])
                     ->reactive()

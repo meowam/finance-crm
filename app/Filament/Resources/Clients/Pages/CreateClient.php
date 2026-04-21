@@ -97,10 +97,6 @@ class CreateClient extends CreateRecord
         }
 
         $duplicates = Client::query()
-            ->when(
-                $user?->isManager(),
-                fn (Builder $query) => $query->visibleTo($user)
-            )
             ->where(function (Builder $query) use ($data) {
                 if (filled($data['primary_email'] ?? null)) {
                     $query->orWhere('primary_email', $data['primary_email']);
@@ -114,13 +110,15 @@ class CreateClient extends CreateRecord
                     $query->orWhere('document_number', $data['document_number']);
                 }
             })
-            ->limit(3)
+            ->limit(5)
             ->get();
 
         if ($duplicates->isNotEmpty()) {
             $body = $duplicates
                 ->map(function (Client $client): string {
-                    return '• ' . $client->display_label;
+                    $managerName = $client->assignedUser?->name;
+
+                    return '• ' . $client->display_label . ($managerName ? " (менеджер: {$managerName})" : '');
                 })
                 ->implode("\n");
 

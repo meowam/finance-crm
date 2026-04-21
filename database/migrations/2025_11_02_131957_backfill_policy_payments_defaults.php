@@ -47,7 +47,24 @@ return new class extends Migration
                 UPDATE policy_payments
                 SET due_date = COALESCE(
                     due_date,
-                    date(COALESCE(initiated_at, created_at, CURRENT_TIMESTAMP), '+7 days')
+                    (
+                        SELECT payment_due_at
+                        FROM policies
+                        WHERE policies.id = policy_payments.policy_id
+                    ),
+                    date(
+                        COALESCE(
+                            (
+                                SELECT effective_date
+                                FROM policies
+                                WHERE policies.id = policy_payments.policy_id
+                            ),
+                            initiated_at,
+                            created_at,
+                            CURRENT_TIMESTAMP
+                        ),
+                        '+7 days'
+                    )
                 )
             ");
 
@@ -55,15 +72,16 @@ return new class extends Migration
         }
 
         DB::statement("
-            UPDATE policy_payments
-            SET due_date =
-                COALESCE(
-                    due_date,
-                    DATE_ADD(
-                        COALESCE(initiated_at, created_at, NOW()),
-                        INTERVAL FLOOR(5 + RAND()*3) DAY
-                    )
+            UPDATE policy_payments pp
+            LEFT JOIN policies p ON p.id = pp.policy_id
+            SET pp.due_date = COALESCE(
+                pp.due_date,
+                p.payment_due_at,
+                DATE_ADD(
+                    COALESCE(p.effective_date, pp.initiated_at, pp.created_at, NOW()),
+                    INTERVAL 7 DAY
                 )
+            )
         ");
     }
 

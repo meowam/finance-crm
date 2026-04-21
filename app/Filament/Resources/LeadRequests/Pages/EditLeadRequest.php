@@ -28,6 +28,21 @@ class EditLeadRequest extends EditRecord
         abort_unless($user->can('update', $this->record), 403);
     }
 
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        abort_unless($user instanceof User, 403);
+        abort_unless($user->can('update', $this->record), 403);
+
+        if ($user->isManager()) {
+            $data['assigned_user_id'] = $user->id;
+        }
+
+        return $data;
+    }
+
     protected function getHeaderActions(): array
     {
         /** @var User|null $user */
