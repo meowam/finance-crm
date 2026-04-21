@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Filament\Resources\ActivityLogs;
+namespace App\Filament\Resources\ActivityLogs\Tables;
 
 use App\Models\ActivityLog;
 use App\Models\Client;
