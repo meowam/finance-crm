@@ -11,6 +11,7 @@ use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreatePolicy extends CreateRecord
 {
@@ -47,22 +48,47 @@ class CreatePolicy extends CreateRecord
             ->url(static::getResource()::getUrl('index'));
     }
 
+    protected function ensureValidAgent(array $data, User $user): array
+    {
+        if ($user->isManager()) {
+            $data['agent_id'] = $user->id;
+
+            return $data;
+        }
+
+        $agentId = isset($data['agent_id']) ? (int) $data['agent_id'] : 0;
+
+        $isValidManager = $agentId > 0
+            && User::query()
+                ->whereKey($agentId)
+                ->where('role', 'manager')
+                ->where('is_active', true)
+                ->exists();
+
+        if (! $isValidManager) {
+            throw ValidationException::withMessages([
+                'agent_id' => 'Можна призначити лише активного менеджера.',
+            ]);
+        }
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         /** @var User|null $user */
         $user = Auth::user();
 
         abort_unless($user?->can('create', Policy::class), 403);
+        abort_unless($user instanceof User, 403);
 
-        if ($user instanceof User && $user->isManager()) {
-            $data['agent_id'] = $user->id;
+        $data = $this->ensureValidAgent($data, $user);
 
-            if (! empty($data['client_id'])) {
-                $client = Client::query()->find($data['client_id']);
+        if ($user->isManager() && ! empty($data['client_id'])) {
+            $client = Client::query()->find($data['client_id']);
 
-                if (! $client || ! $client->isVisibleTo($user)) {
-                    abort(403);
-                }
+            if (! $client || ! $client->isVisibleTo($user)) {
+                abort(403);
             }
         }
 

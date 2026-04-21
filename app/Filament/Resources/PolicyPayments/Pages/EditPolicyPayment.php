@@ -108,31 +108,4 @@ class EditPolicyPayment extends EditRecord
 
         return $data;
     }
-
-    protected function afterSave(): void
-    {
-        $payment = $this->record->refresh();
-        $policy  = $payment->policy;
-
-        if (! $policy) {
-            return;
-        }
-
-        $status = $payment->status instanceof \BackedEnum
-            ? $payment->status->value
-            : (string) $payment->status;
-
-        $map = [
-            'paid'      => 'active',
-            'scheduled' => 'draft',
-            'overdue'   => 'canceled',
-            'canceled'  => 'canceled',
-        ];
-
-        $newStatus = $map[$status] ?? null;
-
-        if ($newStatus && $policy->status !== $newStatus) {
-            $policy->forceFill(['status' => $newStatus])->save();
-        }
-    }
 }

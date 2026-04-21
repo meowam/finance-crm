@@ -8,6 +8,7 @@ use App\Models\User;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class EditPolicy extends EditRecord
 {
@@ -29,6 +30,32 @@ class EditPolicy extends EditRecord
         abort_unless($user->can('update', $this->record), 403);
     }
 
+    protected function ensureValidAgent(array $data, User $user): array
+    {
+        if ($user->isManager()) {
+            $data['agent_id'] = $user->id;
+
+            return $data;
+        }
+
+        $agentId = isset($data['agent_id']) ? (int) $data['agent_id'] : 0;
+
+        $isValidManager = $agentId > 0
+            && User::query()
+                ->whereKey($agentId)
+                ->where('role', 'manager')
+                ->where('is_active', true)
+                ->exists();
+
+        if (! $isValidManager) {
+            throw ValidationException::withMessages([
+                'agent_id' => 'Можна призначити лише активного менеджера.',
+            ]);
+        }
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         /** @var User|null $user */
@@ -37,15 +64,13 @@ class EditPolicy extends EditRecord
         abort_unless($user instanceof User, 403);
         abort_unless($user->can('update', $this->record), 403);
 
-        if ($user->isManager()) {
-            $data['agent_id'] = $user->id;
+        $data = $this->ensureValidAgent($data, $user);
 
-            if (! empty($data['client_id'])) {
-                $client = Client::query()->find($data['client_id']);
+        if ($user->isManager() && ! empty($data['client_id'])) {
+            $client = Client::query()->find($data['client_id']);
 
-                if (! $client || ! $client->isVisibleTo($user)) {
-                    abort(403);
-                }
+            if (! $client || ! $client->isVisibleTo($user)) {
+                abort(403);
             }
         }
 

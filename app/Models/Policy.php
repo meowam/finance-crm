@@ -137,39 +137,48 @@ class Policy extends Model
         });
 
         static::saved(function (Policy $model) {
+            $shouldRefresh = false;
+
             if ($model->wasChanged(['effective_date']) && filled($model->effective_date)) {
                 $newDueDate = Carbon::parse($model->effective_date)->addDays(7)->toDateString();
+                $currentDueDate = $model->payment_due_at?->toDateString();
 
-                if (
-                    blank($model->payment_due_at) ||
-                    $model->payment_due_at?->toDateString() !== $newDueDate
-                ) {
+                if (blank($model->payment_due_at) || $currentDueDate !== $newDueDate) {
                     $model->forceFill([
                         'payment_due_at' => $newDueDate,
                     ])->saveQuietly();
+
+                    $shouldRefresh = true;
                 }
+            }
+
+            if ($shouldRefresh || $model->wasChanged(['effective_date', 'expiration_date', 'payment_due_at'])) {
+                $model->refresh()->recomputeStatus();
             }
         });
     }
 
     public function recomputeStatus(): void
     {
-        $hasPaid = $this->payments()
+        $today = now()->startOfDay();
+
+        $hasPaidPayment = $this->payments()
             ->where('status', PaymentStatus::Paid->value)
             ->exists();
 
+        $isExpired = $this->expiration_date instanceof Carbon
+            ? $today->greaterThanOrEqualTo($this->expiration_date->copy()->startOfDay())
+            : false;
+
+        $isPaymentOverdue = $this->payment_due_at instanceof Carbon
+            ? $today->greaterThan($this->payment_due_at->copy()->startOfDay())
+            : false;
+
         $newStatus = match (true) {
-            $hasPaid && $this->expiration_date && now()->greaterThanOrEqualTo($this->expiration_date)
-                => PolicyStatus::Completed,
-
-            $hasPaid
-                => PolicyStatus::Active,
-
-            $this->payment_due_at && now()->isAfter($this->payment_due_at)
-                => PolicyStatus::Canceled,
-
-            default
-                => PolicyStatus::Draft,
+            $hasPaidPayment && $isExpired => PolicyStatus::Completed,
+            $hasPaidPayment => PolicyStatus::Active,
+            $isPaymentOverdue => PolicyStatus::Canceled,
+            default => PolicyStatus::Draft,
         };
 
         if ($this->status !== $newStatus) {

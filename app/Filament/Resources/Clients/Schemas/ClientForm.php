@@ -255,7 +255,13 @@ class ClientForm
                     ->preload()
                     ->native(false)
                     ->required()
-                    ->rules(['exists:users,id'])
+                    ->rules([
+                        Rule::exists('users', 'id')->where(function ($query) {
+                            $query
+                                ->where('role', 'manager')
+                                ->where('is_active', true);
+                        }),
+                    ])
                     ->default(function () {
                         /** @var User|null $user */
                         $user = Auth::user();
@@ -279,7 +285,7 @@ class ClientForm
                     ->dehydrated(true)
                     ->validationMessages([
                         'required' => 'Оберіть менеджера.',
-                        'exists'   => 'Обраного менеджера не знайдено.',
+                        'exists'   => 'Можна призначити лише активного менеджера.',
                     ]),
 
                 Textarea::make('notes')

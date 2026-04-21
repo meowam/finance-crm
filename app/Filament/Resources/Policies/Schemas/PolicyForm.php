@@ -17,6 +17,7 @@ use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class PolicyForm
 {
@@ -202,6 +203,17 @@ class PolicyForm
                     ->dehydrated(true)
                     ->visibleOn(CreateRecord::class)
                     ->required()
+                    ->rules([
+                        Rule::exists('users', 'id')->where(function ($query) {
+                            $query
+                                ->where('role', 'manager')
+                                ->where('is_active', true);
+                        }),
+                    ])
+                    ->validationMessages([
+                        'required' => 'Оберіть менеджера.',
+                        'exists'   => 'Можна призначити лише активного менеджера.',
+                    ])
                     ->columnSpan(1),
 
                 Select::make('agent_id')
@@ -232,6 +244,17 @@ class PolicyForm
                     ->dehydrated(true)
                     ->visibleOn(EditRecord::class)
                     ->required()
+                    ->rules([
+                        Rule::exists('users', 'id')->where(function ($query) {
+                            $query
+                                ->where('role', 'manager')
+                                ->where('is_active', true);
+                        }),
+                    ])
+                    ->validationMessages([
+                        'required' => 'Оберіть менеджера.',
+                        'exists'   => 'Можна призначити лише активного менеджера.',
+                    ])
                     ->columnSpan(1),
 
                 Select::make('status')

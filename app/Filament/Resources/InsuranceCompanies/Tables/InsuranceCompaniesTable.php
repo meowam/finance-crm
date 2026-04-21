@@ -11,6 +11,14 @@ use Illuminate\Support\Facades\Auth;
 
 class InsuranceCompaniesTable
 {
+    protected static function canManageReferenceDirectory(): bool
+    {
+        $user = Auth::user();
+
+        return $user instanceof User
+            && ($user->isAdmin() || $user->isSupervisor());
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -75,22 +83,12 @@ class InsuranceCompaniesTable
             ->recordActions([
                 EditAction::make()
                     ->label('Змінити')
-                    ->visible(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return $user instanceof User && ! $user->isManager();
-                    }),
+                    ->visible(fn (): bool => self::canManageReferenceDirectory()),
             ])
             ->toolbarActions([
                 DeleteBulkAction::make()
                     ->label('Видалити вибрані')
-                    ->visible(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return $user instanceof User && ! $user->isManager();
-                    }),
+                    ->visible(fn (): bool => self::canManageReferenceDirectory()),
             ]);
     }
 }

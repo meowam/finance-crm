@@ -29,6 +29,11 @@ class Claim extends Model
     ];
 
     protected $casts = [
+        'reported_at' => 'datetime',
+        'loss_occurred_at' => 'date',
+        'amount_claimed' => 'decimal:2',
+        'amount_reserve' => 'decimal:2',
+        'amount_paid' => 'decimal:2',
         'metadata' => 'array',
     ];
 

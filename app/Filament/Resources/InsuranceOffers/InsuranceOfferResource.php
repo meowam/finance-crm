@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use UnitEnum;
 
 class InsuranceOfferResource extends Resource
 {
@@ -22,16 +23,67 @@ class InsuranceOfferResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    protected static string|UnitEnum|null $navigationGroup = 'Страхові довідники';
+
+    protected static ?int $navigationSort = 40;
+
     protected static ?string $navigationLabel = 'Страхові пропозиції';
+
     protected static ?string $modelLabel = 'Страхова пропозиція';
+
     protected static ?string $pluralModelLabel = 'Страхові пропозиції';
+
+    protected static function getAuthUser(): ?User
+    {
+        $user = Auth::user();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    protected static function canViewReferenceDirectory(): bool
+    {
+        $user = static::getAuthUser();
+
+        return $user instanceof User
+            && ($user->isAdmin() || $user->isSupervisor() || $user->isManager());
+    }
+
+    protected static function canManageReferenceDirectory(): bool
+    {
+        $user = static::getAuthUser();
+
+        return $user instanceof User
+            && ($user->isAdmin() || $user->isSupervisor());
+    }
+
+    public static function canViewAny(): bool
+    {
+        return static::canViewReferenceDirectory();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canManageReferenceDirectory();
+    }
+
+    public static function canEdit($record): bool
+    {
+        return static::canManageReferenceDirectory();
+    }
+
+    public static function canDelete($record): bool
+    {
+        return static::canManageReferenceDirectory();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canManageReferenceDirectory();
+    }
 
     public static function shouldRegisterNavigation(): bool
     {
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $user instanceof User;
+        return static::canViewAny();
     }
 
     public static function form(Schema $schema): Schema
@@ -46,9 +98,7 @@ class InsuranceOfferResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array

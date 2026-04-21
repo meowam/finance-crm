@@ -13,6 +13,14 @@ use Illuminate\Support\Facades\Auth;
 
 class InsuranceOffersTable
 {
+    protected static function canManageReferenceDirectory(): bool
+    {
+        $user = Auth::user();
+
+        return $user instanceof User
+            && ($user->isAdmin() || $user->isSupervisor());
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -34,7 +42,7 @@ class InsuranceOffersTable
                     ->label('Продукт')
                     ->searchable()
                     ->sortable()
-                    ->url(fn ($record) => $record->insurance_product_id
+                    ->url(fn ($record) => self::canManageReferenceDirectory() && $record->insurance_product_id
                         ? InsuranceProductResource::getUrl('edit', ['record' => $record->insurance_product_id])
                         : null)
                     ->openUrlInNewTab(),
@@ -43,7 +51,7 @@ class InsuranceOffersTable
                     ->label('Страхова компанія')
                     ->searchable()
                     ->sortable()
-                    ->url(fn ($record) => $record->insurance_company_id
+                    ->url(fn ($record) => self::canManageReferenceDirectory() && $record->insurance_company_id
                         ? InsuranceCompanyResource::getUrl('edit', ['record' => $record->insurance_company_id])
                         : null)
                     ->openUrlInNewTab(),
@@ -77,9 +85,9 @@ class InsuranceOffersTable
                     ->badge()
                     ->formatStateUsing(fn ($state) => $state ? ($state . ' міс.') : '—')
                     ->color(fn ($state) => match ((int) $state) {
-                        1  => 'gray',
-                        3  => 'info',
-                        6  => 'warning',
+                        1 => 'gray',
+                        3 => 'info',
+                        6 => 'warning',
                         12 => 'success',
                         default => 'primary',
                     })
@@ -100,22 +108,12 @@ class InsuranceOffersTable
             ->recordActions([
                 EditAction::make()
                     ->label('Змінити')
-                    ->visible(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return $user instanceof User && ! $user->isManager();
-                    }),
+                    ->visible(fn (): bool => self::canManageReferenceDirectory()),
             ])
             ->toolbarActions([
                 DeleteBulkAction::make()
                     ->label('Видалити вибрані')
-                    ->visible(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return $user instanceof User && ! $user->isManager();
-                    }),
+                    ->visible(fn (): bool => self::canManageReferenceDirectory()),
             ]);
     }
 }

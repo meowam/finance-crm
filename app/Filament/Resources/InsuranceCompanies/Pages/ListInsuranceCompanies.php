@@ -3,10 +3,8 @@
 namespace App\Filament\Resources\InsuranceCompanies\Pages;
 
 use App\Filament\Resources\InsuranceCompanies\InsuranceCompanyResource;
-use App\Models\User;
 use Filament\Actions\CreateAction;
 use Filament\Resources\Pages\ListRecords;
-use Illuminate\Support\Facades\Auth;
 
 class ListInsuranceCompanies extends ListRecords
 {
@@ -16,12 +14,9 @@ class ListInsuranceCompanies extends ListRecords
 
     protected function getHeaderActions(): array
     {
-        /** @var User|null $user */
-        $user = Auth::user();
-
         return [
             CreateAction::make()
-                ->visible($user instanceof User && ! $user->isManager()),
+                ->visible(fn (): bool => InsuranceCompanyResource::canCreate()),
         ];
     }
 }

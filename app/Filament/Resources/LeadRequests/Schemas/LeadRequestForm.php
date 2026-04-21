@@ -71,7 +71,7 @@ class LeadRequestForm
                     ->tel()
                     ->required()
                     ->placeholder('+380671234567')
-                    ->rules(["regex:/^\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\d{7}$/"]),
+                    ->rules(["regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/"]),
 
                 TextInput::make('email')
                     ->label('Email')
@@ -130,7 +130,18 @@ class LeadRequestForm
                         return $user instanceof User && $user->isManager();
                     })
                     ->dehydrated(true)
-                    ->required(),
+                    ->required()
+                    ->rules([
+                        Rule::exists('users', 'id')->where(function ($query) {
+                            $query
+                                ->where('role', 'manager')
+                                ->where('is_active', true);
+                        }),
+                    ])
+                    ->validationMessages([
+                        'required' => 'Оберіть менеджера.',
+                        'exists'   => 'Можна призначити лише активного менеджера.',
+                    ]),
 
                 TextInput::make('converted_client_id')
                     ->label('Створений клієнт')
