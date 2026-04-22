@@ -49,13 +49,13 @@ class CreatePolicyPayment extends CreateRecord
         /** @var User|null $user */
         $user = Auth::user();
 
-        if ($user instanceof User && $user->isManager()) {
-            if (! empty($data['policy_id'])) {
-                $policy = Policy::query()->find($data['policy_id']);
+        abort_unless($user instanceof User, 403);
 
-                if (! $policy || (int) $policy->agent_id !== (int) $user->id) {
-                    abort(403);
-                }
+        if (! empty($data['policy_id'])) {
+            $policy = Policy::query()->find($data['policy_id']);
+
+            if (! $policy || ! $policy->isVisibleTo($user)) {
+                abort(403);
             }
         }
 

@@ -4,15 +4,14 @@ namespace App\Filament\Resources\PolicyPayments\Tables;
 
 use App\Filament\Resources\Clients\ClientResource;
 use App\Filament\Resources\Policies\PolicyResource;
-use App\Models\User;
+use App\Filament\Resources\PolicyPayments\PolicyPaymentResource;
+use App\Models\PolicyPayment;
 use BackedEnum;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Auth;
 
 class PolicyPaymentsTable
 {
@@ -29,16 +28,6 @@ class PolicyPaymentsTable
     public static function configure(Table $table): Table
     {
         return $table
-            ->modifyQueryUsing(function (Builder $query) {
-                /** @var User|null $user */
-                $user = Auth::user();
-
-                if ($user instanceof User && $user->isManager()) {
-                    $query->whereHas('policy', function (Builder $policyQuery) use ($user) {
-                        $policyQuery->where('agent_id', $user->id);
-                    });
-                }
-            })
             ->defaultPaginationPageOption(25)
             ->columns([
                 TextColumn::make('status')
@@ -213,17 +202,12 @@ class PolicyPaymentsTable
             ->recordActions([
                 EditAction::make()
                     ->label('Змінити')
-                    ->visible(fn ($record) => ! in_array(self::low($record->status), ['paid', 'overdue'], true)),
+                    ->visible(fn ($record) => PolicyPaymentResource::canEdit($record) && ! in_array(self::low($record->status), ['paid', 'overdue'], true)),
             ])
             ->toolbarActions([
                 DeleteBulkAction::make()
                     ->label('Видалити')
-                    ->visible(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return $user instanceof User && ! $user->isManager();
-                    })
+                    ->visible(fn (): bool => PolicyPaymentResource::canDeleteAny())
                     ->requiresConfirmation()
                     ->action(function ($records) {
                         $records

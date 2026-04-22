@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\LogsActivity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -56,6 +57,40 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function reportedClaims()
     {
         return $this->hasMany(Claim::class, 'reported_by_id');
+    }
+
+    public function scopeManageableBy(Builder $query, ?self $user): Builder
+    {
+        if (! $user instanceof self) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->isAdmin()) {
+            return $query;
+        }
+
+        if ($user->isSupervisor()) {
+            return $query->where('role', 'manager');
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    public function isManageableBy(?self $user): bool
+    {
+        if (! $user instanceof self) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isSupervisor()) {
+            return $this->role === 'manager';
+        }
+
+        return false;
     }
 
     public function isAdmin(): bool

@@ -16,6 +16,7 @@ use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class PolicyPaymentResource extends Resource
 {
@@ -26,6 +27,36 @@ class PolicyPaymentResource extends Resource
     protected static ?string $navigationLabel = 'Оплати полісів';
     protected static ?string $modelLabel = 'Оплата полісу';
     protected static ?string $pluralModelLabel = 'Оплати полісів';
+
+    public static function canViewAny(): bool
+    {
+        return Gate::allows('viewAny', PolicyPayment::class);
+    }
+
+    public static function canCreate(): bool
+    {
+        return Gate::allows('create', PolicyPayment::class);
+    }
+
+    public static function canEdit($record): bool
+    {
+        return Gate::allows('update', $record);
+    }
+
+    public static function canDelete($record): bool
+    {
+        return Gate::allows('delete', $record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return Gate::allows('deleteAny', PolicyPayment::class);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -49,23 +80,9 @@ class PolicyPaymentResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        $query = parent::getEloquentQuery()->with(['policy.client', 'policy.agent']);
-
-        if ($user instanceof User && $user->isManager()) {
-            $query->whereHas('policy', function (Builder $policyQuery) use ($user) {
-                $policyQuery->where('agent_id', $user->id);
-            });
-        }
-
-        return $query;
-    }
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $user instanceof User;
+        return parent::getEloquentQuery()
+            ->with(['policy.client', 'policy.agent'])
+            ->visibleTo($user);
     }
 
     public static function getPages(): array

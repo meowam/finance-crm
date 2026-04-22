@@ -2,12 +2,11 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
-use App\Models\User;
+use App\Filament\Resources\Users\UserResource;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
-use Illuminate\Support\Facades\Auth;
 
 class UsersTable
 {
@@ -58,7 +57,8 @@ class UsersTable
             ])
             ->recordActions([
                 EditAction::make()
-                    ->label('Редагувати'),
+                    ->label('Редагувати')
+                    ->visible(fn ($record): bool => UserResource::canEdit($record)),
             ])
             ->toolbarActions([
                 //

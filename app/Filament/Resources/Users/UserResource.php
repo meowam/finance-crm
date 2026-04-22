@@ -13,18 +13,11 @@ use Filament\Schemas\Schema;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
-
-    public static function shouldRegisterNavigation(): bool
-    {
-        /** @var User|null $user */
-        $user = Auth::user();
-
-        return $user instanceof User && ($user->isAdmin() || $user->isSupervisor());
-    }
 
     public static function getLabel(): string
     {
@@ -41,21 +34,42 @@ class UserResource extends Resource
         return 'Користувачі';
     }
 
+    public static function canViewAny(): bool
+    {
+        return Gate::allows('viewAny', User::class);
+    }
+
+    public static function canCreate(): bool
+    {
+        return Gate::allows('create', User::class);
+    }
+
+    public static function canEdit($record): bool
+    {
+        return Gate::allows('update', $record);
+    }
+
+    public static function canDelete($record): bool
+    {
+        return Gate::allows('delete', $record);
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return Gate::allows('deleteAny', User::class);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return static::canViewAny();
+    }
+
     public static function getEloquentQuery(): Builder
     {
         /** @var User|null $authUser */
         $authUser = Auth::user();
 
-        abort_unless($authUser instanceof User, 403);
-        abort_if($authUser->isManager(), 403);
-
-        $query = parent::getEloquentQuery();
-
-        if ($authUser->isSupervisor()) {
-            $query->where('role', 'manager');
-        }
-
-        return $query;
+        return parent::getEloquentQuery()->manageableBy($authUser);
     }
 
     public static function form(Schema $schema): Schema

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\PaymentMethod;
 use App\Enums\PaymentStatus;
 use App\Models\Concerns\LogsActivity;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
@@ -37,6 +38,42 @@ class PolicyPayment extends Model
     public function policy()
     {
         return $this->belongsTo(Policy::class);
+    }
+
+    public function scopeVisibleTo(Builder $query, ?User $user): Builder
+    {
+        if (! $user instanceof User) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->isAdmin() || $user->isSupervisor()) {
+            return $query;
+        }
+
+        if ($user->isManager()) {
+            return $query->whereHas('policy', function (Builder $policyQuery) use ($user) {
+                $policyQuery->where('agent_id', $user->id);
+            });
+        }
+
+        return $query->whereRaw('1 = 0');
+    }
+
+    public function isVisibleTo(?User $user): bool
+    {
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if ($user->isAdmin() || $user->isSupervisor()) {
+            return true;
+        }
+
+        if (! $user->isManager()) {
+            return false;
+        }
+
+        return (int) optional($this->policy)->agent_id === (int) $user->id;
     }
 
     protected static function booted(): void

@@ -16,24 +16,6 @@ class EditUser extends EditRecord
         return 'Користувач';
     }
 
-    protected function authorizeAccess(): void
-    {
-        parent::authorizeAccess();
-
-        /** @var User|null $authUser */
-        $authUser = Auth::user();
-
-        abort_unless($authUser instanceof User, 403);
-        abort_if($authUser->isManager(), 403);
-
-        /** @var User $record */
-        $record = $this->record;
-
-        if ($authUser->isSupervisor()) {
-            abort_if($record->role !== 'manager', 403);
-        }
-    }
-
     protected function mutateFormDataBeforeSave(array $data): array
     {
         /** @var User|null $authUser */
