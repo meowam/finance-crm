@@ -70,24 +70,36 @@ class CreateClaim extends CreateRecord
         return $data;
     }
 
-    protected function ensureClaimPolicyIsValid(?int $policyId, User $user): void
-    {
-        if (! $policyId) {
-            return;
-        }
+    protected function ensureClaimPolicyIsValid(?int $policyId, User $user, ?string $lossOccurredAt = null): void
+{
+    if (! $policyId) {
+        return;
+    }
 
-        $policy = Policy::query()->find($policyId);
+    $policy = Policy::query()->find($policyId);
 
-        if (! $policy || ! $policy->isVisibleTo($user)) {
-            abort(403);
-        }
+    if (! $policy || ! $policy->isVisibleTo($user)) {
+        abort(403);
+    }
 
-        if ((string) $policy->status->value !== 'active') {
+    if ((string) $policy->status->value !== 'active') {
+        throw ValidationException::withMessages([
+            'policy_id' => 'Страховий випадок можна створити лише для активного поліса.',
+        ]);
+    }
+
+    if ($lossOccurredAt && $policy->effective_date && $policy->expiration_date) {
+        $lossDate = \Illuminate\Support\Carbon::parse($lossOccurredAt)->startOfDay();
+        $effectiveDate = $policy->effective_date->copy()->startOfDay();
+        $expirationDate = $policy->expiration_date->copy()->startOfDay();
+
+        if ($lossDate->lt($effectiveDate) || $lossDate->gt($expirationDate)) {
             throw ValidationException::withMessages([
-                'policy_id' => 'Страховий випадок можна створити лише для активного поліса.',
+                'loss_occurred_at' => 'Дата страхового випадку повинна бути в межах строку дії поліса.',
             ]);
         }
     }
+}
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
@@ -101,9 +113,10 @@ class CreateClaim extends CreateRecord
         $data = $this->normalizeNotesPayload($data, $user);
 
         $this->ensureClaimPolicyIsValid(
-            isset($data['policy_id']) ? (int) $data['policy_id'] : null,
-            $user
-        );
+    isset($data['policy_id']) ? (int) $data['policy_id'] : null,
+    $user,
+    $data['loss_occurred_at'] ?? null,
+);
 
         return $data;
     }

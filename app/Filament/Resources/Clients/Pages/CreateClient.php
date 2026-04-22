@@ -96,18 +96,18 @@ class CreateClient extends CreateRecord
         $this->leadRequest = $leadRequest;
 
         $this->form->fill([
-            'type' => Request::query('type', $leadRequest->type),
-            'status' => 'lead',
-            'first_name' => Request::query('first_name', $leadRequest->first_name),
-            'last_name' => Request::query('last_name', $leadRequest->last_name),
-            'middle_name' => Request::query('middle_name', $leadRequest->middle_name),
-            'company_name' => Request::query('company_name', $leadRequest->company_name),
-            'primary_email' => Request::query('primary_email', $leadRequest->email),
-            'primary_phone' => Request::query('primary_phone', $leadRequest->phone),
-            'source' => Request::query('source', $leadRequest->source),
-            'assigned_user_id' => Request::query('assigned_user_id', $leadRequest->assigned_user_id),
-            'notes' => Request::query('notes', $leadRequest->comment),
-        ]);
+    'type' => $leadRequest->type,
+    'status' => 'lead',
+    'first_name' => $leadRequest->first_name,
+    'last_name' => $leadRequest->last_name,
+    'middle_name' => $leadRequest->middle_name,
+    'company_name' => $leadRequest->company_name,
+    'primary_email' => $leadRequest->email,
+    'primary_phone' => $leadRequest->phone,
+    'source' => $leadRequest->source,
+    'assigned_user_id' => $leadRequest->assigned_user_id,
+    'notes' => $leadRequest->comment,
+]);
     }
 
     protected function getCreateFormAction(): Action

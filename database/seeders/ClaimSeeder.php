@@ -229,7 +229,7 @@ class ClaimSeeder extends Seeder
                     case 'виплачено':
                         $amountPaid = round($amountReserve * rand(80, 110) / 100, 2);
                         break;
-
+// Технічне маркерне значення для демо-фільтрів/статистики, щоб відхилені кейси не потрапляли до повністю нульових груп.
                     case 'відхилено':
                         $amountPaid = 0.01;
                         break;

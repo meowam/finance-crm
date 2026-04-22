@@ -101,27 +101,50 @@ class ClaimForm
                     ]),
 
                 DatePicker::make('loss_occurred_at')
-                    ->label('Дата страхового випадку')
-                    ->placeholder('дд.мм.рррр')
-                    ->native(false)
-                    ->displayFormat('d.m.Y')
-                    ->format('Y-m-d')
-                    ->timezone(null)
-                    ->closeOnDateSelection()
-                    ->required()
-                    ->minDate(fn () => now()->subYears(5)->startOfDay())
-                    ->maxDate(fn () => now()->endOfDay())
-                    ->rules(function () {
-                        $max = now()->toDateString();
-                        $min = now()->subYears(5)->toDateString();
-                        return ["before_or_equal:$max", "after_or_equal:$min"];
-                    })
-                    ->columnSpan(1)
-                    ->validationMessages([
-                        'required'        => 'Вкажіть дату страхового випадку.',
-                        'before_or_equal' => 'Дата не може бути пізніше за сьогодні.',
-                        'after_or_equal'  => 'Дата не може бути ранішою, ніж ' . now()->subYears(5)->format('d.m.Y') . '.',
-                    ]),
+    ->label('Дата страхового випадку')
+    ->placeholder('дд.мм.рррр')
+    ->native(false)
+    ->displayFormat('d.m.Y')
+    ->format('Y-m-d')
+    ->timezone(null)
+    ->closeOnDateSelection()
+    ->required()
+    ->minDate(fn () => now()->subYears(5)->startOfDay())
+    ->maxDate(fn () => now()->endOfDay())
+    ->rules(function (callable $get) {
+        $rules = [
+            'required',
+        ];
+
+        $policyId = $get('policy_id');
+
+        if (! $policyId) {
+            $max = now()->toDateString();
+            $min = now()->subYears(5)->toDateString();
+
+            $rules[] = "before_or_equal:$max";
+            $rules[] = "after_or_equal:$min";
+
+            return $rules;
+        }
+
+        $policy = \App\Models\Policy::query()->find($policyId);
+
+        if (! $policy || ! $policy->effective_date || ! $policy->expiration_date) {
+            return $rules;
+        }
+
+        $rules[] = 'after_or_equal:' . $policy->effective_date->toDateString();
+        $rules[] = 'before_or_equal:' . $policy->expiration_date->toDateString();
+
+        return $rules;
+    })
+    ->validationMessages([
+        'required'        => 'Вкажіть дату страхового випадку.',
+        'before_or_equal' => 'Дата страхового випадку не може бути пізніше завершення дії поліса.',
+        'after_or_equal'  => 'Дата страхового випадку не може бути раніше початку дії поліса.',
+    ])
+    ->columnSpan(1),
 
                 TextInput::make('loss_location')
                     ->label('Місце події')

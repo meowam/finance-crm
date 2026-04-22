@@ -21,9 +21,9 @@ class ActivityLogResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
 
-    protected static string|null $navigationLabel = 'Журнал активності';
-    protected static string|null $modelLabel = 'Запис активності';
-    protected static string|null $pluralModelLabel = 'Журнал активності';
+protected static string|null $navigationLabel = 'Журнал дій користувачів';
+protected static string|null $modelLabel = 'Запис дії користувача';
+protected static string|null $pluralModelLabel = 'Журнал дій користувачів'; 
     protected static UnitEnum|string|null $navigationGroup = 'Контроль';
 
     public static function canViewAny(): bool
