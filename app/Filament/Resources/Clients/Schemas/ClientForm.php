@@ -112,48 +112,63 @@ class ClientForm
                     ]),
 
                 TextInput::make('primary_email')
-                    ->label('Основна ел. пошта')
-                    ->email()
-                    ->required()
-                    ->rules(['email'])
-                    ->validationMessages([
-                        'required' => 'Вкажіть електронну пошту.',
-                        'email'    => 'Електронна пошта повинна бути у коректному форматі. Приклад: manager@company.com',
-                    ]),
-
+    ->label('Основна ел. пошта')
+    ->email()
+    ->required()
+    ->rules(fn ($record) => [
+        'required',
+        'email',
+        Rule::unique('clients', 'primary_email')->ignore($record?->id),
+    ])
+    ->validationMessages([
+        'required' => 'Вкажіть електронну пошту.',
+        'email'    => 'Електронна пошта повинна бути у коректному форматі. Приклад: manager@company.com',
+        'unique'   => 'Клієнт із такою електронною поштою вже існує, включно з архівними записами.',
+    ]),
                 TextInput::make('primary_phone')
-                    ->label('Основний телефон')
-                    ->tel()
-                    ->placeholder('+380671234567')
-                    ->required()
-                    ->rules(["regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/"])
-                    ->validationMessages([
-                        'required' => 'Вкажіть номер телефону.',
-                        'regex'    => 'Телефон повинен бути у форматі +380XXXXXXXXX з коректним кодом оператора. Приклад: +380671234567.',
-                    ]),
+    ->label('Основний телефон')
+    ->tel()
+    ->placeholder('+380671234567')
+    ->required()
+    ->rules(fn ($record) => [
+        "regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/",
+        Rule::unique('clients', 'primary_phone')->ignore($record?->id),
+    ])
+    ->validationMessages([
+        'required' => 'Вкажіть номер телефону.',
+        'regex'    => 'Телефон повинен бути у форматі +380XXXXXXXXX з коректним кодом оператора. Приклад: +380671234567.',
+        'unique'   => 'Клієнт із таким номером телефону вже існує, включно з архівними записами.',
+    ]),
 
                 TextInput::make('document_number')
-                    ->label('Номер документа')
-                    ->placeholder('AA123456')
-                    ->required(fn (Get $get) => $get('type') === 'individual')
-                    ->visible(fn (Get $get) => $get('type') === 'individual')
-                    ->rules(['nullable', 'regex:/^[A-Z]{2}\\d{6}$/'])
-                    ->validationMessages([
-                        'required' => 'Вкажіть номер документа.',
-                        'regex'    => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр.',
-                    ]),
+    ->label('Номер документа')
+    ->placeholder('AA123456')
+    ->required(fn (Get $get) => $get('type') === 'individual')
+    ->visible(fn (Get $get) => $get('type') === 'individual')
+    ->rules(fn ($record) => [
+        'nullable',
+        'regex:/^[A-Z]{2}\\d{6}$/',
+        Rule::unique('clients', 'document_number')->ignore($record?->id),
+    ])
+    ->validationMessages([
+        'required' => 'Вкажіть номер документа.',
+        'regex'    => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр.',
+        'unique'   => 'Клієнт із таким номером документа вже існує, включно з архівними записами.',
+    ]),
 
                 TextInput::make('tax_id')
-                    ->label(fn (Get $get) => $get('type') === 'company' ? 'ЄДРПОУ / податковий номер' : 'ІПН')
-                    ->placeholder(fn (Get $get) => $get('type') === 'company' ? '12345678' : '1234567890')
-                    ->required()
-                    ->rules(fn (Get $get) => $get('type') === 'company'
-                        ? ['regex:/^\\d{8,10}$/']
-                        : ['regex:/^\\d{10}$/'])
-                    ->validationMessages([
-                        'required' => 'Вкажіть податковий номер.',
-                        'regex'    => 'Для фізичної особи потрібно 10 цифр, для компанії - 8 або 10 цифр.',
-                    ]),
+    ->label(fn (Get $get) => $get('type') === 'company' ? 'ЄДРПОУ / податковий номер' : 'ІПН')
+    ->placeholder(fn (Get $get) => $get('type') === 'company' ? '12345678' : '1234567890')
+    ->required()
+    ->rules(fn (Get $get, $record) => array_filter([
+        $get('type') === 'company' ? 'regex:/^\\d{8,10}$/' : 'regex:/^\\d{10}$/',
+        Rule::unique('clients', 'tax_id')->ignore($record?->id),
+    ]))
+    ->validationMessages([
+        'required' => 'Вкажіть податковий номер.',
+        'regex'    => 'Для фізичної особи потрібно 10 цифр, для компанії - 8 або 10 цифр.',
+        'unique'   => 'Клієнт із таким податковим номером уже існує, включно з архівними записами.',
+    ]),
 
                 DatePicker::make('date_of_birth')
                     ->label('Дата народження')

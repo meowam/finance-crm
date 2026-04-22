@@ -123,30 +123,36 @@ class CreateClient extends CreateRecord
         }
 
         $duplicates = Client::query()
-            ->where(function (Builder $query) use ($data) {
-                if (filled($data['primary_email'] ?? null)) {
-                    $query->orWhere('primary_email', $data['primary_email']);
-                }
+    ->withTrashed()
+    ->where(function (Builder $query) use ($data) {
+        if (filled($data['primary_email'] ?? null)) {
+            $query->orWhere('primary_email', $data['primary_email']);
+        }
 
-                if (filled($data['primary_phone'] ?? null)) {
-                    $query->orWhere('primary_phone', $data['primary_phone']);
-                }
+        if (filled($data['primary_phone'] ?? null)) {
+            $query->orWhere('primary_phone', $data['primary_phone']);
+        }
 
-                if (filled($data['document_number'] ?? null)) {
-                    $query->orWhere('document_number', $data['document_number']);
-                }
-            })
-            ->limit(5)
-            ->get();
+        if (filled($data['document_number'] ?? null)) {
+            $query->orWhere('document_number', $data['document_number']);
+        }
+
+        if (filled($data['tax_id'] ?? null)) {
+            $query->orWhere('tax_id', $data['tax_id']);
+        }
+    })
+    ->limit(5)
+    ->get();
 
         if ($duplicates->isNotEmpty()) {
             $body = $duplicates
-                ->map(function (Client $client): string {
-                    $managerName = $client->assignedUser?->name;
+    ->map(function (Client $client): string {
+        $managerName = $client->assignedUser?->name;
+        $archivedMark = $client->trashed() ? ' [архівний]' : '';
 
-                    return '• ' . $client->display_label . ($managerName ? " (менеджер: {$managerName})" : '');
-                })
-                ->implode("\n");
+        return '• ' . $client->display_label . $archivedMark . ($managerName ? " (менеджер: {$managerName})" : '');
+    })
+    ->implode("\n");
 
             Notification::make()
                 ->warning()

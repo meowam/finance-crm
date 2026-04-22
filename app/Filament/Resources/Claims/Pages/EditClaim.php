@@ -8,6 +8,7 @@ use App\Models\User;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class EditClaim extends EditRecord
 {
@@ -63,6 +64,25 @@ class EditClaim extends EditRecord
         return $data;
     }
 
+    protected function ensureClaimPolicyIsValid(?int $policyId, User $user): void
+    {
+        if (! $policyId) {
+            return;
+        }
+
+        $policy = Policy::query()->find($policyId);
+
+        if (! $policy || ! $policy->isVisibleTo($user)) {
+            abort(403);
+        }
+
+        if ((string) $policy->status->value !== 'active') {
+            throw ValidationException::withMessages([
+                'policy_id' => 'Страховий випадок можна редагувати лише для активного поліса.',
+            ]);
+        }
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         /** @var User|null $user */
@@ -71,13 +91,10 @@ class EditClaim extends EditRecord
         abort_unless($user instanceof User, 403);
         abort_unless($user->can('update', $this->record), 403);
 
-        if (! empty($data['policy_id'])) {
-            $policy = Policy::query()->find($data['policy_id']);
-
-            if (! $policy || ! $policy->isVisibleTo($user)) {
-                abort(403);
-            }
-        }
+        $this->ensureClaimPolicyIsValid(
+            isset($data['policy_id']) ? (int) $data['policy_id'] : null,
+            $user
+        );
 
         $data['reported_by_id'] = (int) $this->record->reported_by_id;
         $data = $this->normalizeNotesPayload($data, $user);

@@ -159,33 +159,33 @@ class Policy extends Model
     }
 
     public function recomputeStatus(): void
-    {
-        $today = now()->startOfDay();
+{
+    $today = now()->startOfDay();
 
-        $hasPaidPayment = $this->payments()
-            ->where('status', PaymentStatus::Paid->value)
-            ->exists();
+    $hasPaidPayment = $this->payments()
+        ->where('status', PaymentStatus::Paid->value)
+        ->exists();
 
-        $isExpired = $this->expiration_date instanceof Carbon
-            ? $today->greaterThanOrEqualTo($this->expiration_date->copy()->startOfDay())
-            : false;
+    $isExpired = $this->expiration_date instanceof Carbon
+        ? $today->greaterThan($this->expiration_date->copy()->startOfDay())
+        : false;
 
-        $isPaymentOverdue = $this->payment_due_at instanceof Carbon
-            ? $today->greaterThan($this->payment_due_at->copy()->startOfDay())
-            : false;
+    $isPaymentOverdue = $this->payment_due_at instanceof Carbon
+        ? $today->greaterThan($this->payment_due_at->copy()->startOfDay())
+        : false;
 
-        $newStatus = match (true) {
-            $hasPaidPayment && $isExpired => PolicyStatus::Completed,
-            $hasPaidPayment => PolicyStatus::Active,
-            $isPaymentOverdue => PolicyStatus::Canceled,
-            default => PolicyStatus::Draft,
-        };
+    $newStatus = match (true) {
+        $hasPaidPayment && $isExpired => PolicyStatus::Completed,
+        $hasPaidPayment => PolicyStatus::Active,
+        $isPaymentOverdue => PolicyStatus::Canceled,
+        default => PolicyStatus::Draft,
+    };
 
-        if ($this->status !== $newStatus) {
-            $this->status = $newStatus;
-            $this->saveQuietly();
-        }
+    if ($this->status !== $newStatus) {
+        $this->status = $newStatus;
+        $this->saveQuietly();
     }
+}
 
     public function getActivityLogLabel(): string
     {

@@ -256,17 +256,19 @@ php artisan key:generate
 
 ### 5. Налаштування бази даних
 
-Для локального запуску можна використати SQLite:
+Для **тестів** у проєкті вже використовується **SQLite in-memory** через `phpunit.xml`, тому окремо нічого налаштовувати не потрібно.
 
-```bash
-touch database/database.sqlite
-```
+Для **локального запуску з демо-даними / seeders** рекомендовано використовувати **MySQL**.
 
 У `.env` потрібно вказати:
 
 ```env
-DB_CONNECTION=sqlite
-DB_DATABASE=/absolute/path/to/project/database/database.sqlite
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=finance
+DB_USERNAME=root
+DB_PASSWORD=
 ```
 
 Після цього виконати міграції:

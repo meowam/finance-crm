@@ -9,6 +9,7 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreateClaim extends CreateRecord
 {
@@ -69,6 +70,25 @@ class CreateClaim extends CreateRecord
         return $data;
     }
 
+    protected function ensureClaimPolicyIsValid(?int $policyId, User $user): void
+    {
+        if (! $policyId) {
+            return;
+        }
+
+        $policy = Policy::query()->find($policyId);
+
+        if (! $policy || ! $policy->isVisibleTo($user)) {
+            abort(403);
+        }
+
+        if ((string) $policy->status->value !== 'active') {
+            throw ValidationException::withMessages([
+                'policy_id' => 'Страховий випадок можна створити лише для активного поліса.',
+            ]);
+        }
+    }
+
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         /** @var User|null $user */
@@ -80,13 +100,10 @@ class CreateClaim extends CreateRecord
         $data['reported_by_id'] = $user->id;
         $data = $this->normalizeNotesPayload($data, $user);
 
-        if (! empty($data['policy_id'])) {
-            $policy = Policy::query()->find($data['policy_id']);
-
-            if (! $policy || ! $policy->isVisibleTo($user)) {
-                abort(403);
-            }
-        }
+        $this->ensureClaimPolicyIsValid(
+            isset($data['policy_id']) ? (int) $data['policy_id'] : null,
+            $user
+        );
 
         return $data;
     }
