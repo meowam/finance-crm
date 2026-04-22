@@ -4,9 +4,10 @@ namespace App\Filament\Resources\Clients\Tables;
 
 use App\Filament\Resources\Policies\PolicyResource;
 use App\Filament\Resources\Users\UserResource;
+use App\Models\Client;
 use App\Models\User;
 use Filament\Actions\Action;
-use Filament\Actions\DeleteBulkAction;
+use Filament\Actions\BulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\TextColumn;
@@ -14,6 +15,7 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 
 class ClientsTable
@@ -251,14 +253,24 @@ class ClientsTable
                     ->openUrlInNewTab(),
             ])
             ->toolbarActions([
-                DeleteBulkAction::make()
+                BulkAction::make('deleteClients')
                     ->label('Видалити обране')
+                    ->icon('heroicon-o-trash')
+                    ->requiresConfirmation()
                     ->visible(function (): bool {
                         /** @var User|null $user */
                         $user = Auth::user();
 
                         return $user instanceof User && $user->can('deleteAny', \App\Models\Client::class);
-                    }),
+                    })
+                    ->modalDescription('Клієнти без історії будуть видалені назавжди. Клієнти з історією будуть архівовані через soft delete.')
+                    ->action(function (Collection $records): void {
+                        /** @var Client $client */
+                        foreach ($records as $client) {
+                            $client->archiveOrDelete();
+                        }
+                    })
+                    ->successNotificationTitle('Обрані клієнти оброблені'),
             ]);
     }
 }

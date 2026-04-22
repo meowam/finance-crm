@@ -69,7 +69,7 @@ class PolicyForm
                             return null;
                         }
 
-                        return Client::query()->find($value)?->display_label;
+                        return Client::withTrashed()->find($value)?->display_label;
                     })
                     ->options(function (): array {
                         /** @var User|null $user */

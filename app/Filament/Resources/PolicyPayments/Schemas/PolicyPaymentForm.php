@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\PolicyPayments\Schemas;
 
 use App\Models\Policy;
+use App\Models\PolicyPayment;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
@@ -12,11 +13,23 @@ use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class PolicyPaymentForm
 {
+    protected static function availablePoliciesQuery(?User $user): Builder
+    {
+        return Policy::query()
+            ->select('id', 'policy_number')
+            ->visibleTo($user)
+            ->where('status', 'draft')
+            ->whereDoesntHave('payments', function (Builder $query) {
+                $query->whereIn('status', PolicyPayment::ACTIVE_STATUSES);
+            });
+    }
+
     protected static function resolveDueDate(?Policy $policy): string
     {
         if ($policy?->payment_due_at) {
@@ -32,15 +45,6 @@ class PolicyPaymentForm
     {
         if (! $policy) {
             return number_format(0, 2, '.', '');
-        }
-
-        if ($policy->insuranceOffer) {
-            $offer = $policy->insuranceOffer;
-            $base = (float) $offer->price * (int) $offer->duration_months;
-            $rate = (float) ($policy->commission_rate ?? 0);
-            $final = round($base + ($base * ($rate / 100)), 2);
-
-            return number_format($final, 2, '.', '');
         }
 
         if ($policy->premium_amount !== null) {
@@ -64,14 +68,7 @@ class PolicyPaymentForm
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return Policy::query()
-                            ->select('id', 'policy_number')
-                            ->where('status', 'draft')
-                            ->whereDoesntHave('payments', fn ($q) => $q->whereIn('status', ['paid', 'scheduled']))
-                            ->when(
-                                $user instanceof User && $user->isManager(),
-                                fn ($query) => $query->where('agent_id', $user->id)
-                            )
+                        return self::availablePoliciesQuery($user)
                             ->orderBy('policy_number')
                             ->limit(50)
                             ->pluck('policy_number', 'id')
@@ -81,15 +78,8 @@ class PolicyPaymentForm
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return Policy::query()
-                            ->select('id', 'policy_number')
-                            ->where('status', 'draft')
-                            ->whereDoesntHave('payments', fn ($q) => $q->whereIn('status', ['paid', 'scheduled']))
-                            ->when(
-                                $user instanceof User && $user->isManager(),
-                                fn ($query) => $query->where('agent_id', $user->id)
-                            )
-                            ->when($search !== '', fn ($q) => $q->where('policy_number', 'like', "%{$search}%"))
+                        return self::availablePoliciesQuery($user)
+                            ->when($search !== '', fn (Builder $query) => $query->where('policy_number', 'like', "%{$search}%"))
                             ->orderBy('policy_number')
                             ->limit(50)
                             ->pluck('policy_number', 'id')
@@ -100,13 +90,24 @@ class PolicyPaymentForm
                             return null;
                         }
 
-                        return Policy::whereKey($value)->value('policy_number');
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return Policy::query()
+                            ->visibleTo($user)
+                            ->whereKey($value)
+                            ->value('policy_number');
                     })
                     ->required()
                     ->rules(['required', 'exists:policies,id'])
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set) {
-                        $policy = $state ? Policy::with('insuranceOffer')->find($state) : null;
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        $policy = $state
+                            ? Policy::query()->visibleTo($user)->find($state)
+                            : null;
 
                         $set('due_date', self::resolveDueDate($policy));
                         $set('amount', self::resolveAmount($policy));
@@ -157,11 +158,14 @@ class PolicyPaymentForm
                             return;
                         }
 
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
                         $policy = null;
                         $policyId = $record?->policy_id ?? $get('policy_id');
 
                         if ($policyId) {
-                            $policy = Policy::find($policyId);
+                            $policy = Policy::query()->visibleTo($user)->find($policyId);
                         }
 
                         $set('due_date', self::resolveDueDate($policy));
@@ -184,11 +188,14 @@ class PolicyPaymentForm
                             return;
                         }
 
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
                         $policy = null;
                         $policyId = $record?->policy_id ?? $get('policy_id');
 
                         if ($policyId) {
-                            $policy = Policy::with('insuranceOffer')->find($policyId);
+                            $policy = Policy::query()->visibleTo($user)->find($policyId);
                         }
 
                         $set('amount', self::resolveAmount($policy));

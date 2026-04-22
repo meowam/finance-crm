@@ -34,7 +34,7 @@ class LeadRequest extends Model
 
     public function convertedClient()
     {
-        return $this->belongsTo(Client::class, 'converted_client_id');
+        return $this->belongsTo(Client::class, 'converted_client_id')->withTrashed();
     }
 
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
@@ -85,6 +85,11 @@ class LeadRequest extends Model
         }
 
         return $this->full_name !== '—' ? $this->full_name : ('Lead #' . $this->id);
+    }
+
+    public function getActivityLogLabelAttribute(): string
+    {
+        return $this->display_label;
     }
 
     public function getActivityLogLabel(): string

@@ -6,10 +6,11 @@ use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Client extends Model
 {
-    use HasFactory, LogsActivity;
+    use HasFactory, LogsActivity, SoftDeletes;
 
     protected $fillable = [
         'type',
@@ -53,6 +54,11 @@ class Client extends Model
         return $this->belongsTo(User::class, 'assigned_user_id');
     }
 
+    public function convertedLeadRequests()
+    {
+        return $this->hasMany(LeadRequest::class, 'converted_client_id');
+    }
+
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
         if (! $user instanceof User) {
@@ -81,6 +87,28 @@ class Client extends Model
         }
 
         return $user->isManager() && (int) $this->assigned_user_id === (int) $user->id;
+    }
+
+    public function hasDeletionHistory(): bool
+    {
+        return $this->policies()->exists()
+            || $this->contacts()->exists()
+            || $this->convertedLeadRequests()->exists();
+    }
+
+    public function archiveOrDelete(): bool|null
+    {
+        if ($this->hasDeletionHistory()) {
+            if ($this->status !== 'archived') {
+                $this->forceFill([
+                    'status' => 'archived',
+                ])->saveQuietly();
+            }
+
+            return $this->delete();
+        }
+
+        return $this->forceDelete();
     }
 
     public function getFullNameAttribute(): string

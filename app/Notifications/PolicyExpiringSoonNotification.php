@@ -27,12 +27,18 @@ class PolicyExpiringSoonNotification extends Notification
         $client = $this->policy->client;
 
         $clientName = $client
-            ? trim(implode(' ', array_filter([
-                $client->last_name,
-                $client->first_name,
-                $client->middle_name,
-            ])))
+            ? ($client->type === 'company' && filled($client->company_name)
+                ? $client->company_name
+                : trim(implode(' ', array_filter([
+                    $client->last_name,
+                    $client->first_name,
+                    $client->middle_name,
+                ]))))
             : 'Клієнт';
+
+        if ($clientName === '') {
+            $clientName = 'Клієнт';
+        }
 
         $policyUrl = "/admin/policies/{$this->policy->id}/edit";
 
@@ -53,7 +59,6 @@ class PolicyExpiringSoonNotification extends Notification
             'notification_type' => 'policy_expiring',
             'policy_id' => $this->policy->id,
             'policy_number' => $this->policy->policy_number,
-            'policy_url' => $policyUrl,
             'client_id' => $client?->id,
             'client_name' => $clientName,
             'expires_at' => $this->policy->expiration_date?->format('Y-m-d'),

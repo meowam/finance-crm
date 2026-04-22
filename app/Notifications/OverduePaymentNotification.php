@@ -60,7 +60,6 @@ class OverduePaymentNotification extends Notification
             'payment_id' => $this->payment->id,
             'policy_id' => $policy?->id,
             'policy_number' => $policy?->policy_number,
-            'policy_url' => $policyUrl,
             'client_id' => $client?->id,
             'client_name' => $clientName,
             'due_date' => $this->payment->due_date?->format('Y-m-d'),

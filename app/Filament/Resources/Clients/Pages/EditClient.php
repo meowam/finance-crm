@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Clients\Pages;
 
 use App\Filament\Resources\Clients\ClientResource;
+use App\Models\Client;
 use App\Models\User;
 use Filament\Actions;
 use Filament\Actions\DeleteAction;
@@ -91,9 +92,25 @@ class EditClient extends EditRecord
         /** @var User|null $user */
         $user = Auth::user();
 
+        /** @var Client $client */
+        $client = $this->record;
+
         return [
             DeleteAction::make()
-                ->visible($user instanceof User && $user->can('delete', $this->record)),
+                ->label('Видалити')
+                ->visible($user instanceof User && $user->can('delete', $client))
+                ->requiresConfirmation()
+                ->modalDescription(fn () => $client->hasDeletionHistory()
+                    ? 'У клієнта є пов’язані історичні записи. Він буде архівований через soft delete та зникне з активних списків, але історія збережеться.'
+                    : 'У клієнта немає пов’язаних історичних записів. Він буде видалений з бази назавжди.')
+                ->successNotificationTitle(fn () => $client->hasDeletionHistory()
+                    ? 'Клієнта архівовано'
+                    : 'Клієнта видалено назавжди')
+                ->action(function () use ($client): void {
+                    $client->archiveOrDelete();
+
+                    $this->redirect($this->getResource()::getUrl('index'));
+                }),
         ];
     }
 }

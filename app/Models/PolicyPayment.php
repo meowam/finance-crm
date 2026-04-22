@@ -9,10 +9,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
+use Illuminate\Validation\ValidationException;
 
 class PolicyPayment extends Model
 {
     use HasFactory, LogsActivity;
+
+    public const ACTIVE_STATUSES = [
+        PaymentStatus::Paid->value,
+        PaymentStatus::Scheduled->value,
+    ];
 
     protected $fillable = [
         'policy_id',
@@ -76,6 +82,39 @@ class PolicyPayment extends Model
         return (int) optional($this->policy)->agent_id === (int) $user->id;
     }
 
+    protected static function normalizeMethod(PolicyPayment $model): ?string
+    {
+        return $model->method instanceof PaymentMethod
+            ? $model->method->value
+            : $model->method;
+    }
+
+    protected static function normalizeStatus(PolicyPayment $model): ?string
+    {
+        return $model->status instanceof PaymentStatus
+            ? $model->status->value
+            : $model->status;
+    }
+
+    protected static function allowedStatusesForMethod(?string $method): array
+    {
+        return match ($method) {
+            'cash', 'card' => ['paid', 'canceled'],
+            'transfer'     => ['scheduled', 'paid', 'canceled', 'overdue'],
+            'no_method'    => ['draft', 'overdue', 'canceled'],
+            default        => [],
+        };
+    }
+
+    protected static function hasAnotherActivePayment(int $policyId, ?int $ignorePaymentId = null): bool
+    {
+        return self::query()
+            ->where('policy_id', $policyId)
+            ->whereIn('status', self::ACTIVE_STATUSES)
+            ->when($ignorePaymentId, fn (Builder $query) => $query->where('id', '!=', $ignorePaymentId))
+            ->exists();
+    }
+
     protected static function booted(): void
     {
         static::creating(function (PolicyPayment $model) {
@@ -89,18 +128,15 @@ class PolicyPayment extends Model
         });
 
         static::saving(function (PolicyPayment $model) {
-            $method = $model->method instanceof PaymentMethod ? $model->method->value : $model->method;
-            $status = $model->status instanceof PaymentStatus ? $model->status->value : $model->status;
+            $method = self::normalizeMethod($model);
+            $status = self::normalizeStatus($model);
 
-            $allowed = match ($method) {
-                'cash', 'card' => ['paid', 'canceled'],
-                'transfer'     => ['scheduled', 'paid', 'canceled', 'overdue'],
-                'no_method'    => ['draft', 'overdue', 'canceled'],
-                default        => [],
-            };
+            $allowed = self::allowedStatusesForMethod($method);
 
             if (! in_array($status, $allowed, true)) {
-                throw new \InvalidArgumentException('Invalid status for method');
+                throw ValidationException::withMessages([
+                    'status' => 'Обраний статус не відповідає вибраному методу оплати.',
+                ]);
             }
 
             if (blank($model->due_date)) {
@@ -116,16 +152,14 @@ class PolicyPayment extends Model
                 $model->initiated_at = now();
             }
 
-            if (in_array($status, ['paid', 'scheduled'], true)) {
-                $existsBlocking = self::query()
-                    ->where('policy_id', $model->policy_id)
-                    ->whereIn('status', ['paid', 'scheduled'])
-                    ->when($model->exists, fn ($q) => $q->where('id', '!=', $model->id))
-                    ->exists();
-
-                if ($existsBlocking) {
-                    throw new \RuntimeException('Another blocking payment exists for this policy');
-                }
+            if (
+                filled($model->policy_id) &&
+                in_array($status, self::ACTIVE_STATUSES, true) &&
+                self::hasAnotherActivePayment((int) $model->policy_id, $model->exists ? (int) $model->id : null)
+            ) {
+                throw ValidationException::withMessages([
+                    'policy_id' => 'Для цього поліса вже існує активний платіж зі статусом «сплачено» або «заплановано». Спочатку завершіть або скасуйте поточний активний платіж.',
+                ]);
             }
         });
 

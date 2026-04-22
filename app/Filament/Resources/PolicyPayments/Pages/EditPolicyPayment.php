@@ -26,7 +26,7 @@ class EditPolicyPayment extends EditRecord
     {
         Notification::make()
             ->title('ЦЕЙ ЗАПИС НЕМОЖЛИВО ВІДРЕДАГУВАТИ')
-            ->body('Платіж має статус сплачено, в обробці або протермінований. Зміни та видалення недоступні.')
+            ->body('Платіж має статус сплачено або протерміновано. Зміни та видалення недоступні.')
             ->icon('heroicon-o-lock-closed')
             ->danger()
             ->persistent()
