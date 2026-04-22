@@ -11,6 +11,7 @@ use App\Models\InsuranceProduct;
 use App\Models\LeadRequest;
 use App\Models\Policy;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 
 trait CreatesDomainObjects
 {
@@ -104,23 +105,48 @@ trait CreatesDomainObjects
         $client ??= $this->makeClient($manager);
         $offer ??= $this->makeOffer();
 
+        $effectiveDate = Carbon::now()->addDay();
+        $expirationDate = $effectiveDate->copy()->addMonths(8);
+        $paymentDueAt = $effectiveDate->copy()->addDays(7);
+
+        $desiredStatus = $overrides['status'] ?? null;
+
         Policy::$suppressAutoDraft = true;
 
         try {
-            return Policy::create(array_merge([
+            /** @var Policy $policy */
+            $policy = Policy::create(array_merge([
                 'client_id' => $client->id,
                 'insurance_offer_id' => $offer->id,
                 'agent_id' => $manager->id,
                 'status' => 'draft',
-                'effective_date' => '2026-04-10',
-                'expiration_date' => '2026-12-31',
+                'effective_date' => $effectiveDate->toDateString(),
+                'expiration_date' => $expirationDate->toDateString(),
                 'premium_amount' => 1500,
                 'coverage_amount' => 100000,
                 'payment_frequency' => 'once',
                 'commission_rate' => 3,
                 'notes' => null,
-                'payment_due_at' => '2026-04-17',
+                'payment_due_at' => $paymentDueAt->toDateString(),
             ], $overrides));
+
+            if ($desiredStatus !== null) {
+                $desiredValue = $desiredStatus instanceof \BackedEnum
+                    ? $desiredStatus->value
+                    : (string) $desiredStatus;
+
+                $currentValue = $policy->status instanceof \BackedEnum
+                    ? $policy->status->value
+                    : (string) $policy->status;
+
+                if ($currentValue !== $desiredValue) {
+                    $policy->forceFill([
+                        'status' => $desiredValue,
+                    ])->saveQuietly();
+                }
+            }
+
+            return $policy->refresh();
         } finally {
             Policy::$suppressAutoDraft = false;
         }

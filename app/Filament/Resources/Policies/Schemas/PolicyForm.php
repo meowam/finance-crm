@@ -21,6 +21,20 @@ use Illuminate\Validation\Rule;
 
 class PolicyForm
 {
+    protected static function resolveCommissionRate(?InsuranceOffer $offer): float
+    {
+        if (! $offer) {
+            return 0.00;
+        }
+
+        return match (mb_strtolower(trim((string) $offer->offer_name))) {
+            'базовий', 'базовый', 'basic' => 3.00,
+            'комфорт+', 'комфорт плюс', 'comfort+' => 1.50,
+            'преміум', 'премиум', 'premium' => 0.00,
+            default => 2.00,
+        };
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -119,13 +133,7 @@ class PolicyForm
                         $offer = $state ? InsuranceOffer::with('insuranceProduct')->find($state) : null;
 
                         if ($offer) {
-                            $autoRate = match ($offer->offer_name) {
-                                'Базовий'  => 3.00,
-                                'Комфорт+' => 1.50,
-                                'Преміум'  => 0.50,
-                                default    => 2.00,
-                            };
-
+                            $autoRate = self::resolveCommissionRate($offer);
                             $set('commission_rate', number_format($autoRate, 2, '.', ''));
                         }
 
@@ -136,7 +144,9 @@ class PolicyForm
                                 : null
                         );
 
-                        $rate = (float) ($get('commission_rate') ?? 0);
+                        $rate = $offer
+                            ? self::resolveCommissionRate($offer)
+                            : 0.00;
 
                         if ($offer) {
                             $base = (float) $offer->price * (int) $offer->duration_months;

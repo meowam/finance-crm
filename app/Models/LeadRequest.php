@@ -67,6 +67,26 @@ class LeadRequest extends Model
         return $user->isManager() && (int) $this->assigned_user_id === (int) $user->id;
     }
 
+    public function resolveConvertedClient(): ?Client
+    {
+        if (blank($this->converted_client_id)) {
+            return null;
+        }
+
+        if ($this->relationLoaded('convertedClient')) {
+            return $this->convertedClient;
+        }
+
+        return $this->convertedClient()->first();
+    }
+
+    public function hasExistingClient(): bool
+    {
+        $client = $this->resolveConvertedClient();
+
+        return $client instanceof Client && ! $client->trashed();
+    }
+
     public function getFullNameAttribute(): string
     {
         $parts = array_filter([

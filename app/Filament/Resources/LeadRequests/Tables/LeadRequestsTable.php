@@ -18,15 +18,17 @@ class LeadRequestsTable
 {
     protected static function hasExistingClient(LeadRequest $record): bool
     {
-        if (blank($record->converted_client_id)) {
-            return false;
-        }
+        return $record->hasExistingClient();
+    }
 
-        if ($record->relationLoaded('convertedClient')) {
-            return $record->convertedClient !== null;
-        }
+    protected static function resolveConvertedClient(LeadRequest $record): ?Client
+    {
+        return $record->resolveConvertedClient();
+    }
 
-        return Client::query()->whereKey($record->converted_client_id)->exists();
+    protected static function hasOpenableClient(LeadRequest $record): bool
+    {
+        return static::hasExistingClient($record);
     }
 
     public static function configure(Table $table): Table
@@ -151,8 +153,12 @@ class LeadRequestsTable
                 Action::make('openClient')
                     ->label('Відкрити клієнта')
                     ->icon('heroicon-o-user')
-                    ->visible(fn (LeadRequest $record) => static::hasExistingClient($record))
-                    ->url(fn (LeadRequest $record) => ClientResource::getUrl('edit', ['record' => $record->converted_client_id]))
+                    ->visible(fn (LeadRequest $record) => static::hasOpenableClient($record))
+                    ->url(function (LeadRequest $record): string {
+                        $client = static::resolveConvertedClient($record);
+
+                        return ClientResource::getUrl('edit', ['record' => $client->getKey()]);
+                    })
                     ->openUrlInNewTab(),
             ])
             ->toolbarActions([
