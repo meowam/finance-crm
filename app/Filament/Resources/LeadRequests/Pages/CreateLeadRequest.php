@@ -6,6 +6,7 @@ use App\Filament\Resources\LeadRequests\LeadRequestResource;
 use App\Models\LeadRequest;
 use App\Models\User;
 use App\Notifications\NewLeadAssignedNotification;
+use App\Services\Assignments\ManagerAssignmentService;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
@@ -27,6 +28,15 @@ class CreateLeadRequest extends CreateRecord
         return static::getResource()::getUrl('index');
     }
 
+    protected function resolveAutoAssignedManagerId(User $user): ?int
+    {
+        if ($user->isManager()) {
+            return $user->id;
+        }
+
+        return app(ManagerAssignmentService::class)->resolveLeastBusyManagerId();
+    }
+
     protected function ensureValidAssignedManager(array $data, User $user): array
     {
         if ($user->isManager()) {
@@ -36,6 +46,11 @@ class CreateLeadRequest extends CreateRecord
         }
 
         $assignedUserId = isset($data['assigned_user_id']) ? (int) $data['assigned_user_id'] : 0;
+
+        if ($assignedUserId <= 0) {
+            $assignedUserId = (int) ($this->resolveAutoAssignedManagerId($user) ?? 0);
+            $data['assigned_user_id'] = $assignedUserId;
+        }
 
         $isValidManager = $assignedUserId > 0
             && User::query()

@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\LeadRequests\Schemas;
 
 use App\Models\User;
+use App\Services\Assignments\ManagerAssignmentService;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
-use Filament\Resources\Pages\CreateRecord;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -121,7 +121,11 @@ class LeadRequestForm
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return $user instanceof User && $user->isManager() ? $user->id : null;
+                        if ($user instanceof User && $user->isManager()) {
+                            return $user->id;
+                        }
+
+                        return app(ManagerAssignmentService::class)->resolveLeastBusyManagerId();
                     })
                     ->disabled(function (): bool {
                         /** @var User|null $user */
@@ -140,7 +144,7 @@ class LeadRequestForm
                     ])
                     ->validationMessages([
                         'required' => 'Оберіть менеджера.',
-                        'exists'   => 'Можна призначити лише активного менеджера.',
+                        'exists' => 'Можна призначити лише активного менеджера.',
                     ]),
 
                 TextInput::make('converted_client_id')

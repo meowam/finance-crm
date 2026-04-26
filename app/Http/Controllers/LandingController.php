@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\LeadRequest;
 use App\Models\User;
 use App\Notifications\NewLeadAssignedNotification;
+use App\Services\Assignments\ManagerAssignmentService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -81,13 +82,10 @@ class LandingController extends Controller
 
         $validated = $validator->validated();
 
-        $assignedManagerId = User::query()
-            ->where('role', 'manager')
-            ->where('is_active', true)
-            ->orderBy('id')
-            ->value('id');
+        $assignmentService = app(ManagerAssignmentService::class);
+        $assignedManager = $assignmentService->resolveLeastBusyManager();
 
-        if (! $assignedManagerId) {
+        if (! $assignedManager instanceof User) {
             return redirect()
                 ->to(route('landing.index') . '#form')
                 ->withErrors([
@@ -118,15 +116,11 @@ class LandingController extends Controller
             'comment' => filled($validated['comment'] ?? null)
                 ? trim((string) $validated['comment'])
                 : null,
-            'assigned_user_id' => $assignedManagerId,
+            'assigned_user_id' => $assignedManager->id,
             'converted_client_id' => null,
         ]);
 
-        $assignedManager = User::query()->find($assignedManagerId);
-
-        if ($assignedManager instanceof User) {
-            $assignedManager->notify(new NewLeadAssignedNotification($leadRequest));
-        }
+        $assignedManager->notify(new NewLeadAssignedNotification($leadRequest));
 
         return redirect()
             ->to(route('landing.index') . '#form')

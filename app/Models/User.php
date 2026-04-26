@@ -49,6 +49,11 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Client::class, 'assigned_user_id');
     }
 
+    public function assignedLeadRequests()
+    {
+        return $this->hasMany(LeadRequest::class, 'assigned_user_id');
+    }
+
     public function policies()
     {
         return $this->hasMany(Policy::class, 'agent_id');

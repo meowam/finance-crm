@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Clients\Schemas;
 
 use App\Models\User;
+use App\Services\Assignments\ManagerAssignmentService;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -284,11 +285,7 @@ class ClientForm
                             return $user->id;
                         }
 
-                        return User::query()
-                            ->where('is_active', true)
-                            ->where('role', 'manager')
-                            ->orderBy('name')
-                            ->value('id');
+                        return app(ManagerAssignmentService::class)->resolveLeastBusyManagerId();
                     })
                     ->disabled(function (): bool {
                         /** @var User|null $user */

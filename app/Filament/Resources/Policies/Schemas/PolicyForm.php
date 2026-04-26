@@ -35,6 +35,53 @@ class PolicyForm
         };
     }
 
+    protected static function resolvePremiumAmount(?InsuranceOffer $offer, ?float $rate = null): ?string
+    {
+        if (! $offer) {
+            return null;
+        }
+
+        $commissionRate = $rate ?? self::resolveCommissionRate($offer);
+        $base = (float) $offer->price * (int) $offer->duration_months;
+        $premium = $base + ($base * ($commissionRate / 100));
+
+        return number_format($premium, 2, '.', '');
+    }
+
+    protected static function syncInitialPaymentAmount(callable $set, callable $get, ?string $premiumAmount): void
+    {
+        $payments = $get('payments');
+
+        if (! is_array($payments) || $payments === [] || ! array_key_exists(0, $payments)) {
+            return;
+        }
+
+        $set(
+            'payments.0.amount',
+            $premiumAmount !== null && $premiumAmount !== ''
+                ? number_format((float) $premiumAmount, 2, '.', '')
+                : number_format(0, 2, '.', '')
+        );
+    }
+
+    protected static function syncInitialPaymentDueDate(callable $set, callable $get, ?string $effectiveDate): void
+    {
+        $payments = $get('payments');
+
+        if (! is_array($payments) || $payments === [] || ! array_key_exists(0, $payments)) {
+            return;
+        }
+
+        if (! $effectiveDate) {
+            return;
+        }
+
+        $set(
+            'payments.0.due_date',
+            Carbon::parse($effectiveDate)->addDays(7)->toDateString()
+        );
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -132,9 +179,14 @@ class PolicyForm
                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                         $offer = $state ? InsuranceOffer::with('insuranceProduct')->find($state) : null;
 
+                        $rate = $offer
+                            ? self::resolveCommissionRate($offer)
+                            : 0.00;
+
                         if ($offer) {
-                            $autoRate = self::resolveCommissionRate($offer);
-                            $set('commission_rate', number_format($autoRate, 2, '.', ''));
+                            $set('commission_rate', number_format($rate, 2, '.', ''));
+                        } else {
+                            $set('commission_rate', number_format(0, 2, '.', ''));
                         }
 
                         $set(
@@ -144,17 +196,10 @@ class PolicyForm
                                 : null
                         );
 
-                        $rate = $offer
-                            ? self::resolveCommissionRate($offer)
-                            : 0.00;
+                        $premium = self::resolvePremiumAmount($offer, $rate);
+                        $set('premium_amount', $premium);
 
-                        if ($offer) {
-                            $base = (float) $offer->price * (int) $offer->duration_months;
-                            $premium = $base + ($base * ($rate / 100));
-                            $set('premium_amount', number_format($premium, 2, '.', ''));
-                        } else {
-                            $set('premium_amount', null);
-                        }
+                        self::syncInitialPaymentAmount($set, $get, $premium);
 
                         $effectiveDate = $get('effective_date');
 
@@ -164,6 +209,8 @@ class PolicyForm
                                 ->format('Y-m-d');
 
                             $set('expiration_date', $expiration);
+                        } else {
+                            $set('expiration_date', null);
                         }
                     })
                     ->afterStateHydrated(function ($state, callable $set, $record) {
@@ -222,7 +269,7 @@ class PolicyForm
                     ])
                     ->validationMessages([
                         'required' => 'Оберіть менеджера.',
-                        'exists'   => 'Можна призначити лише активного менеджера.',
+                        'exists' => 'Можна призначити лише активного менеджера.',
                     ])
                     ->columnSpan(1),
 
@@ -263,17 +310,17 @@ class PolicyForm
                     ])
                     ->validationMessages([
                         'required' => 'Оберіть менеджера.',
-                        'exists'   => 'Можна призначити лише активного менеджера.',
+                        'exists' => 'Можна призначити лише активного менеджера.',
                     ])
                     ->columnSpan(1),
 
                 Select::make('status')
                     ->label('Статус')
                     ->options([
-                        'draft'     => 'чернетка',
-                        'active'    => 'активний',
+                        'draft' => 'чернетка',
+                        'active' => 'активний',
                         'completed' => 'завершено',
-                        'canceled'  => 'скасовано',
+                        'canceled' => 'скасовано',
                     ])
                     ->native(false)
                     ->disabled()
@@ -292,7 +339,7 @@ class PolicyForm
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                         $offerId = $get('insurance_offer_id');
-                        $offer   = $offerId ? InsuranceOffer::find($offerId) : null;
+                        $offer = $offerId ? InsuranceOffer::find($offerId) : null;
 
                         if ($offer && $state) {
                             $expiration = Carbon::parse($state)
@@ -302,9 +349,7 @@ class PolicyForm
                             $set('expiration_date', $expiration);
                         }
 
-                        if ($state) {
-                            $set('payments.0.due_date', Carbon::parse($state)->addDays(7)->toDateString());
-                        }
+                        self::syncInitialPaymentDueDate($set, $get, $state);
                     })
                     ->columnSpan(1),
 
@@ -327,9 +372,10 @@ class PolicyForm
                     ->required()
                     ->rules(['numeric', 'min:0'])
                     ->reactive()
-                    ->afterStateUpdated(function ($state, callable $set) {
-                        $set(
-                            'payments.0.amount',
+                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                        self::syncInitialPaymentAmount(
+                            $set,
+                            $get,
                             $state !== null && $state !== ''
                                 ? number_format((float) $state, 2, '.', '')
                                 : number_format(0, 2, '.', '')
@@ -366,18 +412,19 @@ class PolicyForm
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                         $offerId = $get('insurance_offer_id');
-                        $offer   = $offerId ? InsuranceOffer::find($offerId) : null;
+                        $offer = $offerId ? InsuranceOffer::find($offerId) : null;
 
                         if (! $offer) {
+                            $set('premium_amount', null);
+                            self::syncInitialPaymentAmount($set, $get, null);
+
                             return;
                         }
 
-                        $base = (float) $offer->price * (int) $offer->duration_months;
-                        $rate = (float) ($state ?? 0);
-                        $premium = $base + ($base * ($rate / 100));
+                        $premium = self::resolvePremiumAmount($offer, (float) ($state ?? 0));
 
-                        $set('premium_amount', number_format($premium, 2, '.', ''));
-                        $set('payments.0.amount', number_format($premium, 2, '.', ''));
+                        $set('premium_amount', $premium);
+                        self::syncInitialPaymentAmount($set, $get, $premium);
                     })
                     ->columnSpan(1),
 
@@ -401,9 +448,9 @@ class PolicyForm
                             ->placeholder('Оберіть метод…')
                             ->options([
                                 'no_method' => 'Не вибрано',
-                                'card'      => 'Картка',
-                                'cash'      => 'Готівка',
-                                'transfer'  => 'Переказ',
+                                'card' => 'Картка',
+                                'cash' => 'Готівка',
+                                'transfer' => 'Переказ',
                             ])
                             ->native(false)
                             ->required()
@@ -412,8 +459,8 @@ class PolicyForm
                             ->afterStateUpdated(function ($state, callable $set) {
                                 $paymentStatus = match ($state) {
                                     'card', 'cash' => 'paid',
-                                    'transfer'     => 'scheduled',
-                                    default        => 'draft',
+                                    'transfer' => 'scheduled',
+                                    default => 'draft',
                                 };
 
                                 $set('status', $paymentStatus);
@@ -423,10 +470,10 @@ class PolicyForm
                         Select::make('status')
                             ->label('Статус')
                             ->options([
-                                'draft'     => 'чернетка',
+                                'draft' => 'чернетка',
                                 'scheduled' => 'заплановано',
-                                'paid'      => 'сплачено',
-                                'canceled'  => 'скасовано',
+                                'paid' => 'сплачено',
+                                'canceled' => 'скасовано',
                             ])
                             ->disabled()
                             ->dehydrated(true)
@@ -435,8 +482,8 @@ class PolicyForm
 
                                 $paymentStatus = match ($method) {
                                     'card', 'cash' => 'paid',
-                                    'transfer'     => 'scheduled',
-                                    default        => 'draft',
+                                    'transfer' => 'scheduled',
+                                    default => 'draft',
                                 };
 
                                 $set('status', $paymentStatus);
@@ -460,6 +507,7 @@ class PolicyForm
                                 if (blank($state)) {
                                     $effectiveDate = $get('../../effective_date');
                                     $base = $effectiveDate ? Carbon::parse($effectiveDate) : now();
+
                                     $set('due_date', $base->copy()->addDays(7)->toDateString());
                                 }
                             })
