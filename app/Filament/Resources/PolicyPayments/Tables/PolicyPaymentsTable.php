@@ -34,20 +34,22 @@ class PolicyPaymentsTable
                     ->label('Статус')
                     ->badge()
                     ->formatStateUsing(fn ($state) => match (self::low($state)) {
-                        'paid'      => 'Сплачено',
+                        'paid' => 'Сплачено',
                         'scheduled' => 'Очікує',
-                        'overdue'   => 'Прострочено',
-                        'canceled'  => 'Скасовано',
-                        'draft'     => 'Чернетка',
-                        default     => self::str($state),
+                        'overdue' => 'Прострочено',
+                        'canceled' => 'Скасовано',
+                        'draft' => 'Чернетка',
+                        'refunded' => 'Повернено',
+                        default => self::str($state),
                     })
                     ->color(fn ($state) => match (self::low($state)) {
-                        'paid'      => 'success',
+                        'paid' => 'success',
                         'scheduled' => 'warning',
-                        'overdue'   => 'danger',
-                        'canceled'  => 'danger',
-                        'draft'     => 'gray',
-                        default     => 'gray',
+                        'overdue' => 'danger',
+                        'canceled' => 'danger',
+                        'draft' => 'gray',
+                        'refunded' => 'info',
+                        default => 'gray',
                     })
                     ->sortable()
                     ->searchable(),
@@ -68,18 +70,18 @@ class PolicyPaymentsTable
                     ->label('Метод')
                     ->badge()
                     ->formatStateUsing(fn ($state) => match (self::low($state)) {
-                        'card'      => 'Картка',
-                        'transfer'  => 'Переказ',
-                        'cash'      => 'Готівка',
+                        'card' => 'Картка',
+                        'transfer' => 'Переказ',
+                        'cash' => 'Готівка',
                         'no_method' => 'Не вибрано',
-                        default     => self::str($state),
+                        default => self::str($state),
                     })
                     ->color(fn ($state) => match (self::low($state)) {
-                        'card'      => 'info',
-                        'transfer'  => 'success',
-                        'cash'      => 'warning',
+                        'card' => 'info',
+                        'transfer' => 'success',
+                        'cash' => 'warning',
                         'no_method' => 'gray',
-                        default     => 'gray',
+                        default => 'gray',
                     })
                     ->sortable()
                     ->searchable()
@@ -111,6 +113,10 @@ class PolicyPaymentsTable
                         $paid = $paidRaw ? \Illuminate\Support\Carbon::parse($paidRaw)->format('d.m.Y H:i') : null;
                         $init = $initRaw ? \Illuminate\Support\Carbon::parse($initRaw)->format('d.m.Y H:i') : null;
 
+                        if ($status === 'refunded') {
+                            return 'Кошти повернено';
+                        }
+
                         if ($status === 'canceled') {
                             return 'Оплата скасована';
                         }
@@ -138,6 +144,10 @@ class PolicyPaymentsTable
                         $status = mb_strtolower(trim($status));
                         $hasPaid = (bool) $record->getRawOriginal('paid_at');
                         $hasInit = (bool) $record->getRawOriginal('initiated_at');
+
+                        if ($status === 'refunded') {
+                            return 'info';
+                        }
 
                         if ($status === 'canceled') {
                             return 'danger';
@@ -183,26 +193,27 @@ class PolicyPaymentsTable
                 SelectFilter::make('status')
                     ->label('Статус')
                     ->options([
-                        'draft'     => 'Чернетка',
+                        'draft' => 'Чернетка',
                         'scheduled' => 'Очікує',
-                        'paid'      => 'Сплачено',
-                        'overdue'   => 'Прострочено',
-                        'canceled'  => 'Скасовано',
+                        'paid' => 'Сплачено',
+                        'overdue' => 'Прострочено',
+                        'canceled' => 'Скасовано',
+                        'refunded' => 'Повернено',
                     ]),
 
                 SelectFilter::make('method')
                     ->label('Метод')
                     ->options([
-                        'cash'      => 'Готівка',
-                        'card'      => 'Картка',
-                        'transfer'  => 'Переказ',
+                        'cash' => 'Готівка',
+                        'card' => 'Картка',
+                        'transfer' => 'Переказ',
                         'no_method' => 'Не вибрано',
                     ]),
             ])
             ->recordActions([
                 EditAction::make()
                     ->label('Змінити')
-                    ->visible(fn ($record) => PolicyPaymentResource::canEdit($record) && ! in_array(self::low($record->status), ['paid', 'overdue'], true)),
+                    ->visible(fn ($record) => PolicyPaymentResource::canEdit($record) && ! in_array(self::low($record->status), ['paid', 'overdue', 'refunded'], true)),
             ])
             ->toolbarActions([
                 DeleteBulkAction::make()

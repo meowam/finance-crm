@@ -32,6 +32,8 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->brandName('Finance CRM')
+            ->favicon(asset('favicon.svg'))
             ->databaseNotifications()
             ->databaseNotificationsPolling('30s')
             ->colors([

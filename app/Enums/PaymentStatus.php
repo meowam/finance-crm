@@ -9,4 +9,5 @@ enum PaymentStatus: string
     case Paid = 'paid';
     case Overdue = 'overdue';
     case Canceled = 'canceled';
+    case Refunded = 'refunded';
 }

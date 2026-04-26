@@ -114,7 +114,7 @@ class PolicyPaymentForm
                     })
                     ->disabled(fn ($record) => $record && in_array(
                         mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue'],
+                        ['paid', 'overdue', 'refunded'],
                         true
                     ))
                     ->visibleOn(CreateRecord::class)
@@ -206,7 +206,7 @@ class PolicyPaymentForm
                     )
                     ->disabled(fn ($record) => $record && in_array(
                         mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue'],
+                        ['paid', 'overdue', 'refunded'],
                         true
                     ))
                     ->columnSpan(1),
@@ -216,9 +216,9 @@ class PolicyPaymentForm
                     ->placeholder('Оберіть метод…')
                     ->options([
                         'no_method' => 'Не вибрано',
-                        'card'      => 'Картка',
-                        'cash'      => 'Готівка',
-                        'transfer'  => 'Переказ',
+                        'card' => 'Картка',
+                        'cash' => 'Готівка',
+                        'transfer' => 'Переказ',
                     ])
                     ->native(false)
                     ->required()
@@ -233,7 +233,7 @@ class PolicyPaymentForm
                         }
 
                         if ($state === 'transfer') {
-                            if (! in_array($get('status'), ['scheduled', 'paid', 'canceled'], true)) {
+                            if (! in_array($get('status'), ['scheduled', 'paid', 'canceled', 'refunded'], true)) {
                                 $set('status', 'scheduled');
                             }
                             $set('initiated_at', $get('initiated_at') ?: now());
@@ -249,7 +249,7 @@ class PolicyPaymentForm
                     })
                     ->disabled(fn ($record) => $record && in_array(
                         mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue'],
+                        ['paid', 'overdue', 'refunded'],
                         true
                     ))
                     ->columnSpan(1),
@@ -257,26 +257,38 @@ class PolicyPaymentForm
                 Select::make('status')
                     ->label('Статус')
                     ->options(fn ($get) => match ($get('method')) {
-                        'transfer'     => ['scheduled' => 'заплановано', 'paid' => 'сплачено', 'canceled' => 'скасовано'],
-                        'card', 'cash' => ['paid' => 'сплачено', 'canceled' => 'скасовано'],
-                        'no_method'    => ['draft' => 'чернетка', 'canceled' => 'скасовано'],
-                        default        => ['draft' => 'чернетка'],
+                        'transfer' => [
+                            'scheduled' => 'заплановано',
+                            'paid' => 'сплачено',
+                            'canceled' => 'скасовано',
+                            'refunded' => 'повернено',
+                        ],
+                        'card', 'cash' => [
+                            'paid' => 'сплачено',
+                            'canceled' => 'скасовано',
+                            'refunded' => 'повернено',
+                        ],
+                        'no_method' => [
+                            'draft' => 'чернетка',
+                            'canceled' => 'скасовано',
+                        ],
+                        default => ['draft' => 'чернетка'],
                     })
                     ->native(false)
                     ->required()
                     ->default(fn ($get) => match ($get('method')) {
-                        'transfer'     => 'scheduled',
+                        'transfer' => 'scheduled',
                         'card', 'cash' => 'paid',
-                        'no_method'    => 'draft',
-                        default        => 'draft',
+                        'no_method' => 'draft',
+                        default => 'draft',
                     })
-                    ->rules(['required', 'in:draft,scheduled,paid,overdue,canceled'])
+                    ->rules(['required', 'in:draft,scheduled,paid,overdue,canceled,refunded'])
                     ->reactive()
                     ->afterStateUpdated(function ($state, callable $set, $get) {
                         $method = $get('method');
 
                         if (in_array($method, ['cash', 'card'], true)) {
-                            $set('paid_at', $state === 'paid' ? ($get('paid_at') ?: now()) : null);
+                            $set('paid_at', $state === 'paid' ? ($get('paid_at') ?: now()) : $get('paid_at'));
                             $set('initiated_at', null);
                             return;
                         }
@@ -298,13 +310,13 @@ class PolicyPaymentForm
                     })
                     ->disabled(fn ($record) => $record && in_array(
                         mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue'],
+                        ['paid', 'overdue', 'refunded'],
                         true
                     ))
                     ->columnSpan(1),
 
                 Hidden::make('paid_at')
-                    ->dehydrateStateUsing(fn ($state, $get) => $get('status') === 'paid' ? ($state ?: now()) : null)
+                    ->dehydrateStateUsing(fn ($state, $get) => $get('status') === 'paid' ? ($state ?: now()) : $state)
                     ->dehydrated(true),
 
                 Hidden::make('initiated_at')
@@ -321,7 +333,7 @@ class PolicyPaymentForm
                     ->dehydrateStateUsing(fn ($s) => filled($s) ? $s : null)
                     ->disabled(fn ($record) => $record && in_array(
                         mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue'],
+                        ['paid', 'overdue', 'refunded'],
                         true
                     ))
                     ->columnSpanFull(),

@@ -12,16 +12,16 @@ use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Gate;
 
 class ClientResource extends Resource
 {
     protected static ?string $model = Client::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-user-circle';
 
     public static function getLabel(): string
     {
@@ -40,12 +40,12 @@ class ClientResource extends Resource
 
     public static function canViewAny(): bool
     {
-        return Auth::user()?->can('viewAny', Client::class) ?? false;
+        return Gate::allows('viewAny', Client::class);
     }
 
     public static function canCreate(): bool
     {
-        return Auth::user()?->can('create', Client::class) ?? false;
+        return Gate::allows('create', Client::class);
     }
 
     public static function form(Schema $schema): Schema

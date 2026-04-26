@@ -50,13 +50,26 @@ class CreatePolicy extends CreateRecord
 
     protected function ensureValidAgent(array $data, User $user): array
     {
+        $clientId = isset($data['client_id']) ? (int) $data['client_id'] : 0;
+        $client = $clientId > 0 ? Client::query()->find($clientId) : null;
+
+        if (! $client) {
+            throw ValidationException::withMessages([
+                'client_id' => 'Оберіть клієнта.',
+            ]);
+        }
+
         if ($user->isManager()) {
+            if (! $client->isVisibleTo($user)) {
+                abort(403);
+            }
+
             $data['agent_id'] = $user->id;
 
             return $data;
         }
 
-        $agentId = isset($data['agent_id']) ? (int) $data['agent_id'] : 0;
+        $agentId = (int) ($client->assigned_user_id ?? 0);
 
         $isValidManager = $agentId > 0
             && User::query()
@@ -67,9 +80,11 @@ class CreatePolicy extends CreateRecord
 
         if (! $isValidManager) {
             throw ValidationException::withMessages([
-                'agent_id' => 'Можна призначити лише активного менеджера.',
+                'agent_id' => 'Для вибраного клієнта не визначено активного менеджера.',
             ]);
         }
+
+        $data['agent_id'] = $agentId;
 
         return $data;
     }
@@ -129,9 +144,9 @@ class CreatePolicy extends CreateRecord
             $base = $policy->effective_date ?: now()->toDateString();
 
             $policy->payments()->create([
-                'amount'   => $policy->premium_amount,
-                'method'   => 'no_method',
-                'status'   => 'draft',
+                'amount' => $policy->premium_amount,
+                'method' => 'no_method',
+                'status' => 'draft',
                 'due_date' => Carbon::parse($base)->addDays(7)->toDateString(),
             ]);
         }

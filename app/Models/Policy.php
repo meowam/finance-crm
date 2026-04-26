@@ -34,13 +34,13 @@ class Policy extends Model
     ];
 
     protected $casts = [
-        'status'           => PolicyStatus::class,
-        'effective_date'   => 'date',
-        'expiration_date'  => 'date',
-        'payment_due_at'   => 'date',
-        'premium_amount'   => 'decimal:2',
-        'coverage_amount'  => 'decimal:2',
-        'commission_rate'  => 'decimal:2',
+        'status' => PolicyStatus::class,
+        'effective_date' => 'date',
+        'expiration_date' => 'date',
+        'payment_due_at' => 'date',
+        'premium_amount' => 'decimal:2',
+        'coverage_amount' => 'decimal:2',
+        'commission_rate' => 'decimal:2',
     ];
 
     public function client()
@@ -98,6 +98,80 @@ class Policy extends Model
         return $user->isManager() && (int) $this->agent_id === (int) $user->id;
     }
 
+    public function hasStarted(): bool
+    {
+        if (! $this->effective_date instanceof Carbon) {
+            return false;
+        }
+
+        return now()->startOfDay()->greaterThanOrEqualTo(
+            $this->effective_date->copy()->startOfDay()
+        );
+    }
+
+    public function isEditableBeforeStart(): bool
+    {
+        $status = $this->status instanceof PolicyStatus
+            ? $this->status->value
+            : (string) $this->status;
+
+        if ($status === PolicyStatus::Canceled->value) {
+            return false;
+        }
+
+        if (! $this->effective_date instanceof Carbon) {
+            return false;
+        }
+
+        return now()->startOfDay()->lt($this->effective_date->copy()->startOfDay());
+    }
+
+    public function syncPendingPaymentDueDatesFromEffectiveDate(): void
+    {
+        if (! $this->effective_date instanceof Carbon) {
+            return;
+        }
+
+        $newDueDate = $this->effective_date->copy()->addDays(7)->toDateString();
+
+        $this->payments()
+            ->whereIn('status', [
+                PaymentStatus::Draft->value,
+                PaymentStatus::Scheduled->value,
+                PaymentStatus::Overdue->value,
+            ])
+            ->update([
+                'due_date' => $newDueDate,
+            ]);
+    }
+
+    public function markCanceledWithPaymentSync(): void
+    {
+        $this->payments()->get()->each(function (PolicyPayment $payment): void {
+            $status = $payment->status instanceof PaymentStatus
+                ? $payment->status->value
+                : (string) $payment->status;
+
+            if ($status === PaymentStatus::Paid->value) {
+                $payment->forceFill([
+                    'status' => PaymentStatus::Refunded->value,
+                ])->saveQuietly();
+
+                return;
+            }
+
+            if (in_array($status, [
+                PaymentStatus::Draft->value,
+                PaymentStatus::Scheduled->value,
+                PaymentStatus::Overdue->value,
+            ], true)) {
+                $payment->forceFill([
+                    'status' => PaymentStatus::Canceled->value,
+                ])->saveQuietly();
+            }
+        });
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Policy $model) {
@@ -127,9 +201,9 @@ class Policy extends Model
             $base = $model->effective_date ?: now()->toDateString();
 
             $model->payments()->create([
-                'amount'   => $model->premium_amount,
-                'method'   => 'no_method',
-                'status'   => 'draft',
+                'amount' => $model->premium_amount,
+                'method' => 'no_method',
+                'status' => 'draft',
                 'due_date' => Carbon::parse($base)->addDays(7)->toDateString(),
             ]);
 
@@ -150,6 +224,8 @@ class Policy extends Model
 
                     $shouldRefresh = true;
                 }
+
+                $model->syncPendingPaymentDueDatesFromEffectiveDate();
             }
 
             if ($shouldRefresh || $model->wasChanged(['effective_date', 'expiration_date', 'payment_due_at'])) {
@@ -159,33 +235,41 @@ class Policy extends Model
     }
 
     public function recomputeStatus(): void
-{
-    $today = now()->startOfDay();
+    {
+        $currentStatus = $this->status instanceof PolicyStatus
+            ? $this->status->value
+            : (string) $this->status;
 
-    $hasPaidPayment = $this->payments()
-        ->where('status', PaymentStatus::Paid->value)
-        ->exists();
+        if ($currentStatus === PolicyStatus::Canceled->value) {
+            return;
+        }
 
-    $isExpired = $this->expiration_date instanceof Carbon
-        ? $today->greaterThan($this->expiration_date->copy()->startOfDay())
-        : false;
+        $today = now()->startOfDay();
 
-    $isPaymentOverdue = $this->payment_due_at instanceof Carbon
-        ? $today->greaterThan($this->payment_due_at->copy()->startOfDay())
-        : false;
+        $hasPaidPayment = $this->payments()
+            ->where('status', PaymentStatus::Paid->value)
+            ->exists();
 
-    $newStatus = match (true) {
-        $hasPaidPayment && $isExpired => PolicyStatus::Completed,
-        $hasPaidPayment => PolicyStatus::Active,
-        $isPaymentOverdue => PolicyStatus::Canceled,
-        default => PolicyStatus::Draft,
-    };
+        $isExpired = $this->expiration_date instanceof Carbon
+            ? $today->greaterThan($this->expiration_date->copy()->startOfDay())
+            : false;
 
-    if ($this->status !== $newStatus) {
-        $this->status = $newStatus;
-        $this->saveQuietly();
+        $isPaymentOverdue = $this->payment_due_at instanceof Carbon
+            ? $today->greaterThan($this->payment_due_at->copy()->startOfDay())
+            : false;
+
+        $newStatus = match (true) {
+            $hasPaidPayment && $isExpired => PolicyStatus::Completed,
+            $hasPaidPayment => PolicyStatus::Active,
+            $isPaymentOverdue => PolicyStatus::Canceled,
+            default => PolicyStatus::Draft,
+        };
+
+        if ($this->status !== $newStatus) {
+            $this->status = $newStatus;
+            $this->saveQuietly();
+        }
     }
-}
 
     public function getActivityLogLabel(): string
     {

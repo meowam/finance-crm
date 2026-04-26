@@ -3,12 +3,16 @@
 namespace App\Filament\Resources\Policies\Pages;
 
 use App\Filament\Resources\Policies\PolicyResource;
-use App\Models\Client;
-use App\Models\User;
+use App\Models\Policy;
+use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
 
 class EditPolicy extends EditRecord
 {
@@ -30,30 +34,33 @@ class EditPolicy extends EditRecord
         abort_unless($user->can('update', $this->record), 403);
     }
 
-    protected function ensureValidAgent(array $data, User $user): array
+    protected function canEditBeforeStart(): bool
     {
-        if ($user->isManager()) {
-            $data['agent_id'] = $user->id;
+        return $this->record instanceof Policy && $this->record->isEditableBeforeStart();
+    }
 
-            return $data;
-        }
+    protected function normalizedStatus(mixed $status): string
+    {
+        return $status instanceof \BackedEnum
+            ? (string) $status->value
+            : (string) $status;
+    }
 
-        $agentId = isset($data['agent_id']) ? (int) $data['agent_id'] : 0;
+    protected function lockImmutableFields(array $data): array
+    {
+        /** @var Policy $record */
+        $record = $this->record;
 
-        $isValidManager = $agentId > 0
-            && User::query()
-                ->whereKey($agentId)
-                ->where('role', 'manager')
-                ->where('is_active', true)
-                ->exists();
-
-        if (! $isValidManager) {
-            throw ValidationException::withMessages([
-                'agent_id' => 'Можна призначити лише активного менеджера.',
-            ]);
-        }
-
-        return $data;
+        return array_merge($data, [
+            'client_id' => $record->client_id,
+            'insurance_offer_id' => $record->insurance_offer_id,
+            'agent_id' => $record->agent_id,
+            'premium_amount' => $record->premium_amount !== null ? number_format((float) $record->premium_amount, 2, '.', '') : null,
+            'coverage_amount' => $record->coverage_amount !== null ? number_format((float) $record->coverage_amount, 2, '.', '') : null,
+            'payment_frequency' => $record->payment_frequency,
+            'commission_rate' => $record->commission_rate !== null ? number_format((float) $record->commission_rate, 2, '.', '') : null,
+            'notes' => $record->notes,
+        ]);
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
@@ -64,17 +71,79 @@ class EditPolicy extends EditRecord
         abort_unless($user instanceof User, 403);
         abort_unless($user->can('update', $this->record), 403);
 
-        $data = $this->ensureValidAgent($data, $user);
+        /** @var Policy $record */
+        $record = $this->record;
 
-        if ($user->isManager() && ! empty($data['client_id'])) {
-            $client = Client::query()->find($data['client_id']);
-
-            if (! $client || ! $client->isVisibleTo($user)) {
-                abort(403);
-            }
+        if (! $this->canEditBeforeStart()) {
+            throw ValidationException::withMessages([
+                'effective_date' => 'Цей поліс уже набрав чинності або був скасований. Редагування недоступне.',
+            ]);
         }
 
+        $data = $this->lockImmutableFields($data);
+
+        $newEffectiveDate = $data['effective_date'] ?? $record->effective_date?->toDateString();
+
+        if (! filled($newEffectiveDate)) {
+            throw ValidationException::withMessages([
+                'effective_date' => 'Вкажіть дату початку дії.',
+            ]);
+        }
+
+        if (Carbon::parse($newEffectiveDate)->startOfDay()->lessThanOrEqualTo(now()->startOfDay())) {
+            throw ValidationException::withMessages([
+                'effective_date' => 'Можна встановити лише майбутню дату початку дії.',
+            ]);
+        }
+
+        $currentStatus = $this->normalizedStatus($record->status);
+        $newStatus = $data['status'] ?? $currentStatus;
+
+        if (! in_array($newStatus, [$currentStatus, 'canceled'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Для збереженого поліса можна змінити лише статус на «скасовано».',
+            ]);
+        }
+
+        $offer = $record->insuranceOffer;
+
+        if (! $offer) {
+            throw ValidationException::withMessages([
+                'insurance_offer_id' => 'Для поліса не знайдено страховий продукт.',
+            ]);
+        }
+
+        $data['status'] = $newStatus;
+        $data['expiration_date'] = Carbon::parse($newEffectiveDate)
+            ->addMonths((int) $offer->duration_months)
+            ->format('Y-m-d');
+
         return $data;
+    }
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        /** @var Policy $record */
+        return DB::transaction(function () use ($record, $data): Model {
+            $statusBefore = $this->normalizedStatus($record->status);
+
+            $record->update($data);
+
+            $statusAfter = $this->normalizedStatus($record->fresh()->status);
+
+            if ($statusBefore !== 'canceled' && $statusAfter === 'canceled') {
+                $record->refresh()->markCanceledWithPaymentSync();
+            }
+
+            return $record->refresh();
+        });
+    }
+
+    protected function getSaveFormAction(): Action
+    {
+        return parent::getSaveFormAction()
+            ->label('Зберегти')
+            ->visible($this->canEditBeforeStart());
     }
 
     protected function getHeaderActions(): array

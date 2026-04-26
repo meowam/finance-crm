@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\Policies\Schemas;
 
+use App\Enums\PolicyStatus;
 use App\Models\Client;
 use App\Models\InsuranceOffer;
+use App\Models\Policy;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -21,6 +24,29 @@ use Illuminate\Validation\Rule;
 
 class PolicyForm
 {
+    protected static function normalizePolicyStatus(mixed $status): string
+    {
+        return $status instanceof \BackedEnum
+            ? (string) $status->value
+            : (string) $status;
+    }
+
+    protected static function isFutureEditablePolicy(?Policy $record): bool
+    {
+        return $record instanceof Policy && $record->isEditableBeforeStart();
+    }
+
+    protected static function resolveStatusLabel(string $status): string
+    {
+        return match ($status) {
+            'draft' => 'чернетка',
+            'active' => 'активний',
+            'completed' => 'завершено',
+            'canceled' => 'скасовано',
+            default => $status,
+        };
+    }
+
     protected static function resolveCommissionRate(?InsuranceOffer $offer): float
     {
         if (! $offer) {
@@ -52,34 +78,73 @@ class PolicyForm
     {
         $payments = $get('payments');
 
-        if (! is_array($payments) || $payments === [] || ! array_key_exists(0, $payments)) {
+        if (! is_array($payments) || $payments === []) {
             return;
         }
 
-        $set(
-            'payments.0.amount',
-            $premiumAmount !== null && $premiumAmount !== ''
-                ? number_format((float) $premiumAmount, 2, '.', '')
-                : number_format(0, 2, '.', '')
-        );
+        $normalizedAmount = $premiumAmount !== null && $premiumAmount !== ''
+            ? number_format((float) $premiumAmount, 2, '.', '')
+            : number_format(0, 2, '.', '');
+
+        foreach (array_keys($payments) as $itemKey) {
+            $set("payments.{$itemKey}.amount", $normalizedAmount);
+        }
     }
 
     protected static function syncInitialPaymentDueDate(callable $set, callable $get, ?string $effectiveDate): void
     {
         $payments = $get('payments');
 
-        if (! is_array($payments) || $payments === [] || ! array_key_exists(0, $payments)) {
+        if (! is_array($payments) || $payments === [] || ! $effectiveDate) {
             return;
         }
 
-        if (! $effectiveDate) {
-            return;
+        $dueDate = Carbon::parse($effectiveDate)->addDays(7)->toDateString();
+
+        foreach (array_keys($payments) as $itemKey) {
+            $set("payments.{$itemKey}.due_date", $dueDate);
+        }
+    }
+
+    protected static function resolveAssignedManager(?int $clientId, ?User $authUser): ?User
+    {
+        if ($authUser instanceof User && $authUser->isManager()) {
+            return $authUser;
         }
 
-        $set(
-            'payments.0.due_date',
-            Carbon::parse($effectiveDate)->addDays(7)->toDateString()
-        );
+        if (! $clientId) {
+            return null;
+        }
+
+        $client = Client::query()
+            ->with('assignedUser')
+            ->find($clientId);
+
+        if (! $client) {
+            return null;
+        }
+
+        $assignedManager = $client->assignedUser;
+
+        if (! $assignedManager instanceof User) {
+            return null;
+        }
+
+        if (! $assignedManager->isManager() || ! $assignedManager->is_active) {
+            return null;
+        }
+
+        return $assignedManager;
+    }
+
+    protected static function resolveAssignedManagerId(?int $clientId, ?User $authUser): ?int
+    {
+        return self::resolveAssignedManager($clientId, $authUser)?->id;
+    }
+
+    protected static function resolveAssignedManagerName(?int $clientId, ?User $authUser): ?string
+    {
+        return self::resolveAssignedManager($clientId, $authUser)?->name;
     }
 
     public static function configure(Schema $schema): Schema
@@ -150,6 +215,26 @@ class PolicyForm
                     ->native(false)
                     ->required()
                     ->rules(['required', 'exists:clients,id'])
+                    ->reactive()
+                    ->afterStateHydrated(function ($state, callable $set) {
+                        /** @var User|null $authUser */
+                        $authUser = Auth::user();
+
+                        $clientId = $state ? (int) $state : null;
+
+                        $set('agent_id', self::resolveAssignedManagerId($clientId, $authUser));
+                        $set('agent_display', self::resolveAssignedManagerName($clientId, $authUser));
+                    })
+                    ->afterStateUpdated(function ($state, callable $set) {
+                        /** @var User|null $authUser */
+                        $authUser = Auth::user();
+
+                        $clientId = $state ? (int) $state : null;
+
+                        $set('agent_id', self::resolveAssignedManagerId($clientId, $authUser));
+                        $set('agent_display', self::resolveAssignedManagerName($clientId, $authUser));
+                    })
+                    ->disabled(fn ($record) => $record !== null)
                     ->columnSpan(1),
 
                 Select::make('insurance_offer_id')
@@ -183,11 +268,7 @@ class PolicyForm
                             ? self::resolveCommissionRate($offer)
                             : 0.00;
 
-                        if ($offer) {
-                            $set('commission_rate', number_format($rate, 2, '.', ''));
-                        } else {
-                            $set('commission_rate', number_format(0, 2, '.', ''));
-                        }
+                        $set('commission_rate', number_format($rate, 2, '.', ''));
 
                         $set(
                             'coverage_amount',
@@ -228,38 +309,11 @@ class PolicyForm
                             $set('expiration_date', $expiration);
                         }
                     })
+                    ->disabled(fn ($record) => $record !== null)
                     ->columnSpan(1),
 
-                Select::make('agent_id')
-                    ->label('Менеджер')
-                    ->options(function () {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        if ($user instanceof User && $user->isManager()) {
-                            return User::query()
-                                ->whereKey($user->id)
-                                ->pluck('name', 'id')
-                                ->toArray();
-                        }
-
-                        return User::query()
-                            ->where('is_active', true)
-                            ->where('role', 'manager')
-                            ->orderBy('name')
-                            ->pluck('name', 'id')
-                            ->toArray();
-                    })
-                    ->default(fn () => Auth::id())
-                    ->disabled(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return $user instanceof User && $user->isManager();
-                    })
+                Hidden::make('agent_id')
                     ->dehydrated(true)
-                    ->visibleOn(CreateRecord::class)
-                    ->required()
                     ->rules([
                         Rule::exists('users', 'id')->where(function ($query) {
                             $query
@@ -268,50 +322,26 @@ class PolicyForm
                         }),
                     ])
                     ->validationMessages([
-                        'required' => 'Оберіть менеджера.',
                         'exists' => 'Можна призначити лише активного менеджера.',
-                    ])
-                    ->columnSpan(1),
+                    ]),
 
-                Select::make('agent_id')
+                TextInput::make('agent_display')
                     ->label('Менеджер')
-                    ->options(function ($record) {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        if ($user instanceof User && $user->isManager()) {
-                            return $record && $record->agent
-                                ? [$record->agent->id => $record->agent->name]
-                                : [];
+                    ->readOnly()
+                    ->dehydrated(false)
+                    ->placeholder('Буде визначено автоматично')
+                    ->afterStateHydrated(function ($state, callable $set, Get $get, $record) {
+                        if ($record instanceof Policy && $record->agent) {
+                            $set('agent_display', $record->agent->name);
+                            return;
                         }
 
-                        return User::query()
-                            ->where('is_active', true)
-                            ->where('role', 'manager')
-                            ->orderBy('name')
-                            ->pluck('name', 'id')
-                            ->toArray();
-                    })
-                    ->disabled(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
+                        /** @var User|null $authUser */
+                        $authUser = Auth::user();
+                        $clientId = $get('client_id') ? (int) $get('client_id') : null;
 
-                        return $user instanceof User && $user->isManager();
+                        $set('agent_display', self::resolveAssignedManagerName($clientId, $authUser));
                     })
-                    ->dehydrated(true)
-                    ->visibleOn(EditRecord::class)
-                    ->required()
-                    ->rules([
-                        Rule::exists('users', 'id')->where(function ($query) {
-                            $query
-                                ->where('role', 'manager')
-                                ->where('is_active', true);
-                        }),
-                    ])
-                    ->validationMessages([
-                        'required' => 'Оберіть менеджера.',
-                        'exists' => 'Можна призначити лише активного менеджера.',
-                    ])
                     ->columnSpan(1),
 
                 Select::make('status')
@@ -326,6 +356,36 @@ class PolicyForm
                     ->disabled()
                     ->dehydrated(true)
                     ->default('draft')
+                    ->visibleOn(CreateRecord::class)
+                    ->columnSpan(1),
+
+                Select::make('status')
+                    ->label('Статус')
+                    ->options(function ($record): array {
+                        if (! $record instanceof Policy) {
+                            return [];
+                        }
+
+                        $currentStatus = self::normalizePolicyStatus($record->status);
+
+                        if (! self::isFutureEditablePolicy($record)) {
+                            return [
+                                $currentStatus => self::resolveStatusLabel($currentStatus),
+                            ];
+                        }
+
+                        return [
+                            $currentStatus => self::resolveStatusLabel($currentStatus),
+                            PolicyStatus::Canceled->value => 'скасовано',
+                        ];
+                    })
+                    ->native(false)
+                    ->default(fn ($record) => $record ? self::normalizePolicyStatus($record->status) : PolicyStatus::Draft->value)
+                    ->disabled(fn ($record) => ! self::isFutureEditablePolicy($record))
+                    ->dehydrated(true)
+                    ->visibleOn(EditRecord::class)
+                    ->required()
+                    ->rules([Rule::in(['draft', 'active', 'completed', 'canceled'])])
                     ->columnSpan(1),
 
                 DatePicker::make('effective_date')
@@ -334,9 +394,10 @@ class PolicyForm
                     ->displayFormat('d.m.Y')
                     ->format('Y-m-d')
                     ->default(fn () => now()->toDateString())
-                    ->minDate(fn () => now()->toDateString())
+                    ->minDate(fn ($record) => $record ? now()->addDay()->toDateString() : now()->toDateString())
                     ->required()
                     ->reactive()
+                    ->disabled(fn ($record) => $record ? ! self::isFutureEditablePolicy($record) : false)
                     ->afterStateUpdated(function ($state, callable $set, callable $get) {
                         $offerId = $get('insurance_offer_id');
                         $offer = $offerId ? InsuranceOffer::find($offerId) : null;
@@ -381,6 +442,7 @@ class PolicyForm
                                 : number_format(0, 2, '.', '')
                         );
                     })
+                    ->disabled(fn ($record) => $record !== null)
                     ->columnSpan(1),
 
                 TextInput::make('coverage_amount')
@@ -391,6 +453,7 @@ class PolicyForm
                     ->readOnly()
                     ->required()
                     ->rules(['nullable', 'numeric', 'min:0'])
+                    ->disabled(fn ($record) => $record !== null)
                     ->columnSpan(1),
 
                 Select::make('payment_frequency')
@@ -426,12 +489,14 @@ class PolicyForm
                         $set('premium_amount', $premium);
                         self::syncInitialPaymentAmount($set, $get, $premium);
                     })
+                    ->disabled(fn ($record) => $record !== null)
                     ->columnSpan(1),
 
                 Textarea::make('notes')
                     ->label('Нотатки')
                     ->rows(3)
                     ->dehydrateStateUsing(fn ($state) => filled($state) ? $state : null)
+                    ->disabled(fn ($record) => $record !== null)
                     ->columnSpanFull(),
 
                 Repeater::make('payments')
@@ -441,6 +506,7 @@ class PolicyForm
                     ->maxItems(1)
                     ->defaultItems(0)
                     ->reorderable(false)
+                    ->disabled(fn ($record) => $record !== null)
                     ->columns(2)
                     ->schema([
                         Select::make('method')

@@ -12,7 +12,6 @@ use App\Models\User;
 use BackedEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +20,7 @@ class LeadRequestResource extends Resource
 {
     protected static ?string $model = LeadRequest::class;
 
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedInboxStack;
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-inbox-stack';
 
     protected static ?string $navigationLabel = 'Вхідні заявки';
     protected static ?string $modelLabel = 'Вхідна заявка';

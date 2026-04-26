@@ -99,10 +99,10 @@ class PolicyPayment extends Model
     protected static function allowedStatusesForMethod(?string $method): array
     {
         return match ($method) {
-            'cash', 'card' => ['paid', 'canceled'],
-            'transfer'     => ['scheduled', 'paid', 'canceled', 'overdue'],
-            'no_method'    => ['draft', 'overdue', 'canceled'],
-            default        => [],
+            'cash', 'card' => ['paid', 'canceled', 'refunded'],
+            'transfer' => ['scheduled', 'paid', 'canceled', 'overdue', 'refunded'],
+            'no_method' => ['draft', 'overdue', 'canceled'],
+            default => [],
         };
     }
 
@@ -148,7 +148,7 @@ class PolicyPayment extends Model
                 $model->paid_at = now();
             }
 
-            if ($method === 'transfer' && blank($model->initiated_at)) {
+            if ($method === 'transfer' && blank($model->initiated_at) && in_array($status, ['scheduled', 'paid'], true)) {
                 $model->initiated_at = now();
             }
 
