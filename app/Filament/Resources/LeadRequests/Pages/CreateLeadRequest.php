@@ -5,6 +5,7 @@ namespace App\Filament\Resources\LeadRequests\Pages;
 use App\Filament\Resources\LeadRequests\LeadRequestResource;
 use App\Models\LeadRequest;
 use App\Models\User;
+use App\Notifications\NewLeadAssignedNotification;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
@@ -67,5 +68,30 @@ class CreateLeadRequest extends CreateRecord
         }
 
         return $data;
+    }
+
+    protected function afterCreate(): void
+    {
+        /** @var LeadRequest|null $leadRequest */
+        $leadRequest = $this->record;
+
+        if (! $leadRequest instanceof LeadRequest) {
+            return;
+        }
+
+        $assignedManager = User::query()->find($leadRequest->assigned_user_id);
+
+        /** @var User|null $currentUser */
+        $currentUser = Auth::user();
+
+        if (! $assignedManager instanceof User) {
+            return;
+        }
+
+        if ($currentUser instanceof User && (int) $currentUser->id === (int) $assignedManager->id) {
+            return;
+        }
+
+        $assignedManager->notify(new NewLeadAssignedNotification($leadRequest));
     }
 }

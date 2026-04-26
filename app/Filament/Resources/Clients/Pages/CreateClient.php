@@ -6,6 +6,7 @@ use App\Filament\Resources\Clients\ClientResource;
 use App\Models\Client;
 use App\Models\LeadRequest;
 use App\Models\User;
+use App\Notifications\NewClientAssignedNotification;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -20,6 +21,8 @@ class CreateClient extends CreateRecord
 {
     protected static string $resource = ClientResource::class;
 
+    public ?int $leadRequestId = null;
+
     protected ?LeadRequest $leadRequest = null;
 
     public function getTitle(): string
@@ -27,15 +30,13 @@ class CreateClient extends CreateRecord
         return 'Новий клієнт';
     }
 
-    protected function resolveLeadRequestFromRequest(?User $user): ?LeadRequest
+    protected function resolveLeadRequest(?User $user): ?LeadRequest
     {
-        $leadRequestId = Request::integer('lead_request_id');
-
-        if (! $leadRequestId) {
+        if (! $this->leadRequestId) {
             return null;
         }
 
-        $leadRequest = LeadRequest::query()->find($leadRequestId);
+        $leadRequest = LeadRequest::query()->find($this->leadRequestId);
 
         if (! $leadRequest) {
             return null;
@@ -78,12 +79,14 @@ class CreateClient extends CreateRecord
 
     public function mount(): void
     {
+        $this->leadRequestId = Request::integer('lead_request_id') ?: null;
+
         parent::mount();
 
         /** @var User|null $user */
         $user = Auth::user();
 
-        $leadRequest = $this->resolveLeadRequestFromRequest($user);
+        $leadRequest = $this->resolveLeadRequest($user);
 
         if (! $leadRequest) {
             return;
@@ -96,18 +99,18 @@ class CreateClient extends CreateRecord
         $this->leadRequest = $leadRequest;
 
         $this->form->fill([
-    'type' => $leadRequest->type,
-    'status' => 'lead',
-    'first_name' => $leadRequest->first_name,
-    'last_name' => $leadRequest->last_name,
-    'middle_name' => $leadRequest->middle_name,
-    'company_name' => $leadRequest->company_name,
-    'primary_email' => $leadRequest->email,
-    'primary_phone' => $leadRequest->phone,
-    'source' => $leadRequest->source,
-    'assigned_user_id' => $leadRequest->assigned_user_id,
-    'notes' => $leadRequest->comment,
-]);
+            'type' => $leadRequest->type,
+            'status' => 'lead',
+            'first_name' => $leadRequest->first_name,
+            'last_name' => $leadRequest->last_name,
+            'middle_name' => $leadRequest->middle_name,
+            'company_name' => $leadRequest->company_name,
+            'primary_email' => $leadRequest->email,
+            'primary_phone' => $leadRequest->phone,
+            'source' => $leadRequest->source,
+            'assigned_user_id' => $leadRequest->assigned_user_id,
+            'notes' => $leadRequest->comment,
+        ]);
     }
 
     protected function getCreateFormAction(): Action
@@ -167,7 +170,7 @@ class CreateClient extends CreateRecord
             $data['status'] = 'lead';
         }
 
-        $leadRequest = $this->resolveLeadRequestFromRequest($user);
+        $leadRequest = $this->resolveLeadRequest($user);
 
         if ($leadRequest && $leadRequest->hasExistingClient()) {
             throw ValidationException::withMessages([
@@ -227,17 +230,15 @@ class CreateClient extends CreateRecord
 
         abort_unless($user instanceof User, 403);
 
-        $leadRequestId = Request::integer('lead_request_id');
-
-        return DB::transaction(function () use ($data, $leadRequestId, $user): Model {
-            if (! $leadRequestId) {
+        return DB::transaction(function () use ($data, $user): Model {
+            if (! $this->leadRequestId) {
                 return static::getModel()::create($data);
             }
 
             /** @var LeadRequest|null $leadRequest */
             $leadRequest = LeadRequest::query()
                 ->lockForUpdate()
-                ->find($leadRequestId);
+                ->find($this->leadRequestId);
 
             if (! $leadRequest) {
                 return static::getModel()::create($data);
@@ -269,7 +270,25 @@ class CreateClient extends CreateRecord
 
     protected function afterCreate(): void
     {
-        if (! Request::integer('lead_request_id')) {
+        /** @var Client|null $client */
+        $client = $this->record;
+
+        if (! $client instanceof Client) {
+            return;
+        }
+
+        $assignedManager = User::query()->find($client->assigned_user_id);
+
+        /** @var User|null $currentUser */
+        $currentUser = Auth::user();
+
+        if ($assignedManager instanceof User) {
+            if (! ($currentUser instanceof User && (int) $currentUser->id === (int) $assignedManager->id)) {
+                $assignedManager->notify(new NewClientAssignedNotification($client));
+            }
+        }
+
+        if (! $this->leadRequestId) {
             return;
         }
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LeadRequest;
 use App\Models\User;
+use App\Notifications\NewLeadAssignedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -97,7 +98,7 @@ class LandingController extends Controller
 
         $normalizedPhone = preg_replace('/[^\d+]/', '', (string) $validated['phone']);
 
-        LeadRequest::create([
+        $leadRequest = LeadRequest::create([
             'type' => $validated['type'],
             'first_name' => trim((string) $validated['first_name']),
             'last_name' => trim((string) $validated['last_name']),
@@ -120,6 +121,12 @@ class LandingController extends Controller
             'assigned_user_id' => $assignedManagerId,
             'converted_client_id' => null,
         ]);
+
+        $assignedManager = User::query()->find($assignedManagerId);
+
+        if ($assignedManager instanceof User) {
+            $assignedManager->notify(new NewLeadAssignedNotification($leadRequest));
+        }
 
         return redirect()
             ->to(route('landing.index') . '#form')

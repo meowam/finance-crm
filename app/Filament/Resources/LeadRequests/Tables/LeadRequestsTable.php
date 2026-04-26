@@ -131,7 +131,7 @@ class LeadRequestsTable
                 Action::make('convertToClient')
                     ->label('Створити клієнта')
                     ->icon('heroicon-o-user-plus')
-                    ->visible(fn (LeadRequest $record) => ! static::hasExistingClient($record))
+                    ->visible(fn (LeadRequest $record) => $record->status !== 'converted' && ! static::hasExistingClient($record))
                     ->url(function (LeadRequest $record): string {
                         return ClientResource::getUrl('create', [
                             'lead_request_id' => $record->id,

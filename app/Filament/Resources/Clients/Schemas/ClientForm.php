@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Clients\Schemas;
 
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -26,7 +27,7 @@ class ClientForm
                     ->label('Тип')
                     ->options([
                         'individual' => 'Фізична особа',
-                        'company'    => 'Компанія',
+                        'company' => 'Компанія',
                     ])
                     ->required()
                     ->native(false)
@@ -37,19 +38,16 @@ class ClientForm
                         'required' => 'Оберіть тип клієнта.',
                     ]),
 
-                TextInput::make('status')
-                    ->label('Статус')
-                    ->readOnly()
-                    ->required()
-                    ->hiddenOn(EditRecord::class)
-                    ->dehydrateStateUsing(fn ($state) => 'lead')
-                    ->default('Потенційний'),
+                Hidden::make('status')
+                    ->default('lead')
+                    ->dehydrated(true)
+                    ->hiddenOn(CreateRecord::class),
 
                 Select::make('status')
                     ->label('Статус')
                     ->options([
-                        'lead'     => 'Потенційний',
-                        'active'   => 'Активний',
+                        'lead' => 'Потенційний',
+                        'active' => 'Активний',
                         'archived' => 'Архівовано',
                     ])
                     ->required()
@@ -69,9 +67,9 @@ class ClientForm
                     ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
                         'required' => "Поле є обов'язковим.",
-                        'min'      => "Поле повинно містити щонайменше 2 символи.",
-                        'max'      => "Поле повинно містити не більше 50 символів.",
-                        'regex'    => "Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.",
+                        'min' => "Поле повинно містити щонайменше 2 символи.",
+                        'max' => "Поле повинно містити не більше 50 символів.",
+                        'regex' => "Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.",
                     ]),
 
                 TextInput::make('last_name')
@@ -82,9 +80,9 @@ class ClientForm
                     ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
                         'required' => 'Поле є обовʼязковим.',
-                        'min'      => 'Поле повинно містити щонайменше 3 символи.',
-                        'max'      => 'Поле повинно містити не більше 50 символів.',
-                        'regex'    => 'Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.',
+                        'min' => 'Поле повинно містити щонайменше 3 символи.',
+                        'max' => 'Поле повинно містити не більше 50 символів.',
+                        'regex' => 'Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.',
                     ]),
 
                 TextInput::make('middle_name')
@@ -94,8 +92,8 @@ class ClientForm
                     ->maxLength(50)
                     ->rules(['nullable', "regex:/^[\\p{L}’'\\- ]+$/u"])
                     ->validationMessages([
-                        'min'   => 'Поле повинно містити щонайменше 2 символи.',
-                        'max'   => 'Поле повинно містити не більше 50 символів.',
+                        'min' => 'Поле повинно містити щонайменше 2 символи.',
+                        'max' => 'Поле повинно містити не більше 50 символів.',
                         'regex' => 'Поле повинно складатися лише з літер, пробілів, апострофа або дефіса.',
                     ]),
 
@@ -108,67 +106,68 @@ class ClientForm
                     ->rules(['nullable', 'string', 'max:150'])
                     ->validationMessages([
                         'required' => 'Вкажіть назву компанії.',
-                        'max'      => 'Назва компанії повинна містити не більше 150 символів.',
+                        'max' => 'Назва компанії повинна містити не більше 150 символів.',
                     ]),
 
                 TextInput::make('primary_email')
-    ->label('Основна ел. пошта')
-    ->email()
-    ->required()
-    ->rules(fn ($record) => [
-        'required',
-        'email',
-        Rule::unique('clients', 'primary_email')->ignore($record?->id),
-    ])
-    ->validationMessages([
-        'required' => 'Вкажіть електронну пошту.',
-        'email'    => 'Електронна пошта повинна бути у коректному форматі. Приклад: manager@company.com',
-        'unique'   => 'Клієнт із такою електронною поштою вже існує, включно з архівними записами.',
-    ]),
+                    ->label('Основна ел. пошта')
+                    ->email()
+                    ->required()
+                    ->rules(fn ($record) => [
+                        'required',
+                        'email',
+                        Rule::unique('clients', 'primary_email')->ignore($record?->id),
+                    ])
+                    ->validationMessages([
+                        'required' => 'Вкажіть електронну пошту.',
+                        'email' => 'Електронна пошта повинна бути у коректному форматі. Приклад: manager@company.com',
+                        'unique' => 'Клієнт із такою електронною поштою вже існує, включно з архівними записами.',
+                    ]),
+
                 TextInput::make('primary_phone')
-    ->label('Основний телефон')
-    ->tel()
-    ->placeholder('+380671234567')
-    ->required()
-    ->rules(fn ($record) => [
-        "regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/",
-        Rule::unique('clients', 'primary_phone')->ignore($record?->id),
-    ])
-    ->validationMessages([
-        'required' => 'Вкажіть номер телефону.',
-        'regex'    => 'Телефон повинен бути у форматі +380XXXXXXXXX з коректним кодом оператора. Приклад: +380671234567.',
-        'unique'   => 'Клієнт із таким номером телефону вже існує, включно з архівними записами.',
-    ]),
+                    ->label('Основний телефон')
+                    ->tel()
+                    ->placeholder('+380671234567')
+                    ->required()
+                    ->rules(fn ($record) => [
+                        "regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/",
+                        Rule::unique('clients', 'primary_phone')->ignore($record?->id),
+                    ])
+                    ->validationMessages([
+                        'required' => 'Вкажіть номер телефону.',
+                        'regex' => 'Телефон повинен бути у форматі +380XXXXXXXXX з коректним кодом оператора. Приклад: +380671234567.',
+                        'unique' => 'Клієнт із таким номером телефону вже існує, включно з архівними записами.',
+                    ]),
 
                 TextInput::make('document_number')
-    ->label('Номер документа')
-    ->placeholder('AA123456')
-    ->required(fn (Get $get) => $get('type') === 'individual')
-    ->visible(fn (Get $get) => $get('type') === 'individual')
-    ->rules(fn ($record) => [
-        'nullable',
-        'regex:/^[A-Z]{2}\\d{6}$/',
-        Rule::unique('clients', 'document_number')->ignore($record?->id),
-    ])
-    ->validationMessages([
-        'required' => 'Вкажіть номер документа.',
-        'regex'    => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр.',
-        'unique'   => 'Клієнт із таким номером документа вже існує, включно з архівними записами.',
-    ]),
+                    ->label('Номер документа')
+                    ->placeholder('AA123456')
+                    ->required(fn (Get $get) => $get('type') === 'individual')
+                    ->visible(fn (Get $get) => $get('type') === 'individual')
+                    ->rules(fn ($record) => [
+                        'nullable',
+                        'regex:/^[A-Z]{2}\\d{6}$/',
+                        Rule::unique('clients', 'document_number')->ignore($record?->id),
+                    ])
+                    ->validationMessages([
+                        'required' => 'Вкажіть номер документа.',
+                        'regex' => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр.',
+                        'unique' => 'Клієнт із таким номером документа вже існує, включно з архівними записами.',
+                    ]),
 
                 TextInput::make('tax_id')
-    ->label(fn (Get $get) => $get('type') === 'company' ? 'ЄДРПОУ / податковий номер' : 'ІПН')
-    ->placeholder(fn (Get $get) => $get('type') === 'company' ? '12345678' : '1234567890')
-    ->required()
-    ->rules(fn (Get $get, $record) => array_filter([
-        $get('type') === 'company' ? 'regex:/^\\d{8,10}$/' : 'regex:/^\\d{10}$/',
-        Rule::unique('clients', 'tax_id')->ignore($record?->id),
-    ]))
-    ->validationMessages([
-        'required' => 'Вкажіть податковий номер.',
-        'regex'    => 'Для фізичної особи потрібно 10 цифр, для компанії - 8 або 10 цифр.',
-        'unique'   => 'Клієнт із таким податковим номером уже існує, включно з архівними записами.',
-    ]),
+                    ->label(fn (Get $get) => $get('type') === 'company' ? 'ЄДРПОУ / податковий номер' : 'ІПН')
+                    ->placeholder(fn (Get $get) => $get('type') === 'company' ? '12345678' : '1234567890')
+                    ->required()
+                    ->rules(fn (Get $get, $record) => array_filter([
+                        $get('type') === 'company' ? 'regex:/^\\d{8,10}$/' : 'regex:/^\\d{10}$/',
+                        Rule::unique('clients', 'tax_id')->ignore($record?->id),
+                    ]))
+                    ->validationMessages([
+                        'required' => 'Вкажіть податковий номер.',
+                        'regex' => 'Для фізичної особи потрібно 10 цифр, для компанії - 8 або 10 цифр.',
+                        'unique' => 'Клієнт із таким податковим номером уже існує, включно з архівними записами.',
+                    ]),
 
                 DatePicker::make('date_of_birth')
                     ->label('Дата народження')
@@ -186,9 +185,9 @@ class ClientForm
                         return ["after_or_equal:$min", "before_or_equal:$max"];
                     })
                     ->validationMessages([
-                        'required'        => 'Вкажіть дату народження.',
-                        'date'            => 'Дата народження повинна бути у форматі дд.мм.рррр.',
-                        'after_or_equal'  => 'Дата народження повинна бути не раніше :date.',
+                        'required' => 'Вкажіть дату народження.',
+                        'date' => 'Дата народження повинна бути у форматі дд.мм.рррр.',
+                        'after_or_equal' => 'Дата народження повинна бути не раніше :date.',
                         'before_or_equal' => 'Дата народження повинна бути не пізніше :date.',
                     ]),
 
@@ -204,7 +203,7 @@ class ClientForm
                     ->default('phone')
                     ->validationMessages([
                         'required' => 'Оберіть бажаний спосіб звʼязку.',
-                        'in'       => 'Бажаний спосіб звʼязку повинен бути: «Телефон» або «Email».',
+                        'in' => 'Бажаний спосіб звʼязку повинен бути: «Телефон» або «Email».',
                     ]),
 
                 TextInput::make('city')
@@ -215,7 +214,7 @@ class ClientForm
                     ->rules(['string', 'max:50'])
                     ->validationMessages([
                         'required' => 'Вкажіть місто.',
-                        'max'      => 'Назва міста повинна містити не більше 50 символів.',
+                        'max' => 'Назва міста повинна містити не більше 50 символів.',
                     ]),
 
                 TextInput::make('address_line')
@@ -226,17 +225,17 @@ class ClientForm
                     ->rules(['string', 'max:255'])
                     ->validationMessages([
                         'required' => 'Вкажіть адресу.',
-                        'max'      => 'Адреса повинна містити не більше 255 символів.',
+                        'max' => 'Адреса повинна містити не більше 255 символів.',
                     ]),
 
                 Select::make('source')
                     ->label('Канал звернення')
                     ->options([
-                        'office'         => 'Офіс',
-                        'online'         => 'Онлайн',
+                        'office' => 'Офіс',
+                        'online' => 'Онлайн',
                         'recommendation' => 'Рекомендація',
-                        'landing'        => 'Лендінг',
-                        'other'          => 'Інше',
+                        'landing' => 'Лендінг',
+                        'other' => 'Інше',
                     ])
                     ->native(false)
                     ->required()
@@ -300,7 +299,7 @@ class ClientForm
                     ->dehydrated(true)
                     ->validationMessages([
                         'required' => 'Оберіть менеджера.',
-                        'exists'   => 'Можна призначити лише активного менеджера.',
+                        'exists' => 'Можна призначити лише активного менеджера.',
                     ]),
 
                 Textarea::make('notes')
