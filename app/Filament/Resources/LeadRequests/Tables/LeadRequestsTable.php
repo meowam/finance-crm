@@ -129,14 +129,14 @@ class LeadRequestsTable
                 EditAction::make()->label('Редагувати'),
 
                 Action::make('convertToClient')
-    ->label('Створити клієнта')
-    ->icon('heroicon-o-user-plus')
-    ->visible(fn (LeadRequest $record) => ! static::hasExistingClient($record))
-    ->url(function (LeadRequest $record): string {
-        return ClientResource::getUrl('create', [
-            'lead_request_id' => $record->id,
-        ]);
-    }),
+                    ->label('Створити клієнта')
+                    ->icon('heroicon-o-user-plus')
+                    ->visible(fn (LeadRequest $record) => ! static::hasExistingClient($record))
+                    ->url(function (LeadRequest $record): string {
+                        return ClientResource::getUrl('create', [
+                            'lead_request_id' => $record->id,
+                        ]);
+                    }),
 
                 Action::make('openClient')
                     ->label('Відкрити клієнта')
