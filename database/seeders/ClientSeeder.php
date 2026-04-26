@@ -29,7 +29,10 @@ class ClientSeeder extends Seeder
             $type         = $faker->randomElement(['individual', 'company']);
             $isIndividual = $type === 'individual';
             $phone        = '+380' . $faker->randomElement($operatorCodes) . $faker->numerify('#######');
-            $createdAt    = Carbon::create(2025, 10, rand(1, 31), rand(0, 23), rand(0, 59), rand(0, 59));
+            $createdAt    = Carbon::instance($faker->dateTimeBetween(
+                Carbon::create(2026, 1, 1),
+                Carbon::create(2026, 4, 26, 23, 59, 59)
+            ));
             Client::create([
                 'type'                     => $type,
                 'status'                   => $faker->randomElement(['lead', 'active', 'archived']),

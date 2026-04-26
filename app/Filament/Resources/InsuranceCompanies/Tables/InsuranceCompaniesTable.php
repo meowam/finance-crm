@@ -5,9 +5,11 @@ namespace App\Filament\Resources\InsuranceCompanies\Tables;
 use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class InsuranceCompaniesTable
 {
@@ -24,6 +26,31 @@ class InsuranceCompaniesTable
         return $table
             ->defaultPaginationPageOption(25)
             ->columns([
+                ImageColumn::make('logo_path')
+                    ->label('Лого')
+                    ->disk('public')
+                    ->height(40)
+                    ->width(80)
+                    ->extraImgAttributes([
+                        'style' => 'object-fit: contain; border-radius: 6px;',
+                    ])
+                    ->defaultImageUrl(fn () => asset('favicon.svg'))
+                    ->url(function ($record) {
+                        if (! $record?->logo_path) {
+                            return null;
+                        }
+
+                        $path = ltrim(str_replace(['storage/', 'public/'], '', $record->logo_path), '/');
+
+                        if (! Storage::disk('public')->exists($path)) {
+                            return null;
+                        }
+
+                        return asset('storage/' . $path);
+                    })
+                    ->openUrlInNewTab()
+                    ->toggleable(),
+
                 TextColumn::make('name')
                     ->label('Назва компанії')
                     ->searchable()
@@ -61,11 +88,6 @@ class InsuranceCompaniesTable
                         : null)
                     ->openUrlInNewTab()
                     ->searchable()
-                    ->toggleable(),
-
-                TextColumn::make('logo_path')
-                    ->label('Логотип')
-                    ->sortable()
                     ->toggleable(),
 
                 TextColumn::make('created_at')

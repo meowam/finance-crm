@@ -159,7 +159,7 @@ class ActivityLogsTable
                 'scheduled'   => 'Заплановано',
                 'paid'        => 'Сплачено',
                 'overdue'     => 'Прострочено',
-                'refunded' => 'Повернено',
+                'refunded'    => 'Повернено',
                 'new'         => 'Нова',
                 'in_progress' => 'В роботі',
                 'converted'   => 'Конвертовано',
@@ -262,6 +262,9 @@ class ActivityLogsTable
         return $table
             ->defaultSort('created_at', 'desc')
             ->defaultPaginationPageOption(25)
+            ->emptyStateHeading('Немає записів активності')
+            ->emptyStateDescription('Дії користувачів ще не були зафіксовані або не відповідають вибраним фільтрам.')
+            ->emptyStateIcon('heroicon-o-clipboard-document-list')
             ->columns([
                 TextColumn::make('created_at')
                     ->label('Коли')

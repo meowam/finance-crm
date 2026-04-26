@@ -32,6 +32,9 @@ class RecentActivityLogTable extends BaseWidget
                     ->latest()
             )
             ->defaultPaginationPageOption(10)
+            ->emptyStateHeading('Немає записів активності')
+            ->emptyStateDescription('Дії користувачів ще не були зафіксовані.')
+            ->emptyStateIcon('heroicon-o-clipboard-document-list')
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')
@@ -47,15 +50,29 @@ class RecentActivityLogTable extends BaseWidget
                     ->label('Роль')
                     ->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'admin' => 'Адмін',
-                        'supervisor' => 'Супервайзер',
+                        'admin' => 'Адміністратор',
+                        'supervisor' => 'Керівник відділу',
                         'manager' => 'Менеджер',
+                        null => 'Система',
                         default => $state ?: '—',
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'admin' => 'danger',
+                        'supervisor' => 'warning',
+                        'manager' => 'info',
+                        null => 'gray',
+                        default => 'gray',
                     }),
 
                 Tables\Columns\TextColumn::make('action_label')
                     ->label('Дія')
-                    ->badge(),
+                    ->badge()
+                    ->color(fn (ActivityLog $record) => match ($record->action) {
+                        'created' => 'success',
+                        'updated' => 'info',
+                        'deleted' => 'danger',
+                        default => 'gray',
+                    }),
 
                 Tables\Columns\TextColumn::make('subject_type_label')
                     ->label('Сутність')
