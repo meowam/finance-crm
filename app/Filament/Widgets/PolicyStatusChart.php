@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Widgets;
 
 use App\Models\Policy;
@@ -13,8 +12,16 @@ class PolicyStatusChart extends ChartWidget
 
     protected int|string|array $columnSpan = [
         'default' => 12,
-        'lg' => 4,
+        'lg'      => 4,
     ];
+
+    public static function canView(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        return $user instanceof \App\Models\User  && $user->isManager();
+    }
 
     protected function getData(): array
     {
@@ -31,7 +38,7 @@ class PolicyStatusChart extends ChartWidget
             'datasets' => [
                 [
                     'label' => 'Поліси',
-                    'data' => [
+                    'data'  => [
                         (clone $baseQuery)->where('status', 'draft')->count(),
                         (clone $baseQuery)->where('status', 'active')->count(),
                         (clone $baseQuery)->where('status', 'completed')->count(),
@@ -39,7 +46,7 @@ class PolicyStatusChart extends ChartWidget
                     ],
                 ],
             ],
-            'labels' => [
+            'labels'   => [
                 'Чернетка',
                 'Активний',
                 'Завершено',

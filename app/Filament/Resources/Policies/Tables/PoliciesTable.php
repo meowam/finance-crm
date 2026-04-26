@@ -68,6 +68,7 @@ class PoliciesTable
                         'overdue'   => 'Прострочено',
                         'canceled'  => 'Скасовано',
                         'draft'     => 'Чернетка',
+                        'refunded' => 'Повернено',
                         ''          => '—',
                         default     => self::str($state),
                     })
@@ -77,6 +78,7 @@ class PoliciesTable
                         'overdue'   => 'danger',
                         'canceled'  => 'danger',
                         'draft'     => 'gray',
+                        'refunded' => 'danger',
                         ''          => 'gray',
                         default     => 'gray',
                     })
@@ -240,6 +242,7 @@ class PoliciesTable
                         'scheduled' => 'Очікує',
                         'paid'      => 'Сплачено',
                         'overdue'   => 'Прострочено',
+                        'refunded' => 'Повернено',
                         'canceled'  => 'Скасовано',
                     ])
                     ->query(function ($query, $value) {

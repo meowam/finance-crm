@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Widgets;
 
 use App\Enums\PolicyStatus;
@@ -15,6 +14,14 @@ class ExpiringPoliciesTable extends BaseWidget
     protected static ?string $heading = 'Поліси, строк дії яких скоро завершується';
 
     protected int|string|array $columnSpan = 'full';
+
+    public static function canView(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        return $user instanceof \App\Models\User  && ($user->isManager() || $user->isSupervisor());
+    }
 
     public function table(Table $table): Table
     {
@@ -44,7 +51,7 @@ class ExpiringPoliciesTable extends BaseWidget
                 Tables\Columns\TextColumn::make('policy_number')
                     ->label('Номер полісу')
                     ->searchable()
-                    ->url(fn (Policy $record): string => "/admin/policies/{$record->id}/edit")
+                    ->url(fn(Policy $record): string => "/admin/policies/{$record->id}/edit")
                     ->openUrlInNewTab(),
 
                 Tables\Columns\TextColumn::make('client_full_name')
@@ -75,7 +82,7 @@ class ExpiringPoliciesTable extends BaseWidget
                     ->visible(function (): bool {
                         $user = Auth::user();
 
-                        return ! ($user instanceof \App\Models\User && $user->isManager());
+                        return ! ($user instanceof \App\Models\User  && $user->isManager());
                     }),
 
                 Tables\Columns\TextColumn::make('expiration_date')
@@ -85,7 +92,7 @@ class ExpiringPoliciesTable extends BaseWidget
 
                 Tables\Columns\TextColumn::make('days_left')
                     ->label('Залишилось днів')
-                    ->state(function (Policy $record): int|string {
+                    ->state(function (Policy $record): int | string {
                         if (! $record->expiration_date) {
                             return '—';
                         }

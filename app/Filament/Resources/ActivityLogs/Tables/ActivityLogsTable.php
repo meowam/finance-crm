@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\ActivityLogs\Tables;
 
 use App\Models\ActivityLog;
@@ -18,62 +17,62 @@ class ActivityLogsTable
     protected static function fieldLabels(): array
     {
         return [
-            'name' => 'Ім’я',
-            'email' => 'Email',
-            'role' => 'Роль',
-            'is_active' => 'Активний',
+            'name'                     => 'Ім’я',
+            'email'                    => 'Email',
+            'role'                     => 'Роль',
+            'is_active'                => 'Активний',
 
-            'type' => 'Тип',
-            'status' => 'Статус',
-            'first_name' => 'Ім’я',
-            'last_name' => 'Прізвище',
-            'middle_name' => 'По батькові',
-            'company_name' => 'Назва компанії',
-            'primary_email' => 'Основний email',
-            'primary_phone' => 'Основний телефон',
-            'document_number' => 'Номер документа',
-            'tax_id' => 'ІПН / ЄДРПОУ',
-            'date_of_birth' => 'Дата народження',
+            'type'                     => 'Тип',
+            'status'                   => 'Статус',
+            'first_name'               => 'Ім’я',
+            'last_name'                => 'Прізвище',
+            'middle_name'              => 'По батькові',
+            'company_name'             => 'Назва компанії',
+            'primary_email'            => 'Основний email',
+            'primary_phone'            => 'Основний телефон',
+            'document_number'          => 'Номер документа',
+            'tax_id'                   => 'ІПН / ЄДРПОУ',
+            'date_of_birth'            => 'Дата народження',
             'preferred_contact_method' => 'Бажаний спосіб звʼязку',
-            'city' => 'Місто',
-            'address_line' => 'Адреса',
-            'source' => 'Джерело',
-            'assigned_user_id' => 'Менеджер',
-            'notes' => 'Нотатки',
+            'city'                     => 'Місто',
+            'address_line'             => 'Адреса',
+            'source'                   => 'Джерело',
+            'assigned_user_id'         => 'Менеджер',
+            'notes'                    => 'Нотатки',
 
-            'policy_number' => 'Номер полісу',
-            'client_id' => 'Клієнт',
-            'insurance_offer_id' => 'Страховий продукт',
-            'agent_id' => 'Менеджер',
-            'effective_date' => 'Початок дії',
-            'expiration_date' => 'Закінчення дії',
-            'premium_amount' => 'Сума до оплати',
-            'coverage_amount' => 'Сума покриття',
-            'payment_frequency' => 'Періодичність оплати',
-            'commission_rate' => 'Комісія',
-            'payment_due_at' => 'Дедлайн оплати',
+            'policy_number'            => 'Номер полісу',
+            'client_id'                => 'Клієнт',
+            'insurance_offer_id'       => 'Страховий продукт',
+            'agent_id'                 => 'Менеджер',
+            'effective_date'           => 'Початок дії',
+            'expiration_date'          => 'Закінчення дії',
+            'premium_amount'           => 'Сума до оплати',
+            'coverage_amount'          => 'Сума покриття',
+            'payment_frequency'        => 'Періодичність оплати',
+            'commission_rate'          => 'Комісія',
+            'payment_due_at'           => 'Дедлайн оплати',
 
-            'due_date' => 'Строк оплати',
-            'initiated_at' => 'Ініційовано',
-            'paid_at' => 'Сплачено',
-            'amount' => 'Сума',
-            'method' => 'Метод оплати',
-            'transaction_reference' => 'Номер транзакції',
+            'due_date'                 => 'Строк оплати',
+            'initiated_at'             => 'Ініційовано',
+            'paid_at'                  => 'Сплачено',
+            'amount'                   => 'Сума',
+            'method'                   => 'Метод оплати',
+            'transaction_reference'    => 'Номер транзакції',
 
-            'claim_number' => 'Номер заяви',
-            'policy_id' => 'Поліс',
-            'reported_by_id' => 'Хто зареєстрував',
-            'reported_at' => 'Дата звернення',
-            'loss_occurred_at' => 'Дата події',
-            'loss_location' => 'Місце події',
-            'cause' => 'Причина',
-            'amount_claimed' => 'Заявлена сума',
-            'amount_reserve' => 'Резервна сума',
-            'amount_paid' => 'Виплачена сума',
-            'description' => 'Опис',
-            'visibility' => 'Видимість',
-            'note' => 'Нотатка',
-            'user_id' => 'Користувач',
+            'claim_number'             => 'Номер заяви',
+            'policy_id'                => 'Поліс',
+            'reported_by_id'           => 'Хто зареєстрував',
+            'reported_at'              => 'Дата звернення',
+            'loss_occurred_at'         => 'Дата події',
+            'loss_location'            => 'Місце події',
+            'cause'                    => 'Причина',
+            'amount_claimed'           => 'Заявлена сума',
+            'amount_reserve'           => 'Резервна сума',
+            'amount_paid'              => 'Виплачена сума',
+            'description'              => 'Опис',
+            'visibility'               => 'Видимість',
+            'note'                     => 'Нотатка',
+            'user_id'                  => 'Користувач',
         ];
     }
 
@@ -150,47 +149,48 @@ class ActivityLogsTable
         }
 
         return match ($key) {
-            'status' => match ((string) $value) {
-                'lead' => 'Потенційний',
-                'active' => 'Активний',
-                'archived' => 'Архівовано',
-                'draft' => 'Чернетка',
-                'completed' => 'Завершено',
-                'canceled' => 'Скасовано',
-                'scheduled' => 'Заплановано',
-                'paid' => 'Сплачено',
-                'overdue' => 'Прострочено',
-                'new' => 'Нова',
+            'status'                   => match ((string) $value) {
+                'lead'        => 'Потенційний',
+                'active'      => 'Активний',
+                'archived'    => 'Архівовано',
+                'draft'       => 'Чернетка',
+                'completed'   => 'Завершено',
+                'canceled'    => 'Скасовано',
+                'scheduled'   => 'Заплановано',
+                'paid'        => 'Сплачено',
+                'overdue'     => 'Прострочено',
+                'refunded' => 'Повернено',
+                'new'         => 'Нова',
                 'in_progress' => 'В роботі',
-                'converted' => 'Конвертовано',
-                'rejected' => 'Відхилено',
+                'converted'   => 'Конвертовано',
+                'rejected'    => 'Відхилено',
                 'на розгляді' => 'На розгляді',
-                'схвалено' => 'Схвалено',
-                'виплачено' => 'Виплачено',
-                'відхилено' => 'Відхилено',
-                default => (string) $value,
+                'схвалено'    => 'Схвалено',
+                'виплачено'   => 'Виплачено',
+                'відхилено'   => 'Відхилено',
+                default       => (string) $value,
             },
 
-            'type' => match ((string) $value) {
+            'type'                     => match ((string) $value) {
                 'individual' => 'Фізична особа',
-                'company' => 'Компанія',
-                default => (string) $value,
+                'company'    => 'Компанія',
+                default      => (string) $value,
             },
 
-            'role' => match ((string) $value) {
-                'admin' => 'Адміністратор',
+            'role'                     => match ((string) $value) {
+                'admin'      => 'Адміністратор',
                 'supervisor' => 'Керівник відділу',
-                'manager' => 'Менеджер',
-                default => (string) $value,
+                'manager'    => 'Менеджер',
+                default      => (string) $value,
             },
 
-            'source' => match ((string) $value) {
-                'office' => 'Офіс',
-                'online' => 'Онлайн',
+            'source'                   => match ((string) $value) {
+                'office'         => 'Офіс',
+                'online'         => 'Онлайн',
                 'recommendation' => 'Рекомендація',
-                'landing' => 'Лендінг',
-                'other' => 'Інше',
-                default => (string) $value,
+                'landing'        => 'Лендінг',
+                'other'          => 'Інше',
+                default          => (string) $value,
             },
 
             'preferred_contact_method' => match ((string) $value) {
@@ -199,28 +199,28 @@ class ActivityLogsTable
                 default => (string) $value,
             },
 
-            'method' => match ((string) $value) {
+            'method'                   => match ((string) $value) {
                 'no_method' => 'Не вибрано',
-                'cash' => 'Готівка',
-                'card' => 'Картка',
-                'transfer' => 'Переказ',
-                default => (string) $value,
+                'cash'      => 'Готівка',
+                'card'      => 'Картка',
+                'transfer'  => 'Переказ',
+                default     => (string) $value,
             },
 
-            'is_active' => (bool) $value ? 'Так' : 'Ні',
+            'is_active'                => (bool) $value ? 'Так' : 'Ні',
 
-            'policy_id' => static::resolvePolicyLabel($value),
-            'client_id' => static::resolveClientLabel($value),
+            'policy_id'                => static::resolvePolicyLabel($value),
+            'client_id'                => static::resolveClientLabel($value),
             'reported_by_id', 'assigned_user_id', 'agent_id', 'user_id' => static::resolveUserLabel($value),
-            'insurance_offer_id' => 'Пропозиція #' . (string) $value,
+            'insurance_offer_id'       => 'Пропозиція #' . (string) $value,
 
-            default => is_array($value)
+            default                    => is_array($value)
                 ? json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
                 : (string) $value,
         };
     }
 
-    protected static function prettifyChanges(null|array|string $data): ?string
+    protected static function prettifyChanges(null | array | string $data): ?string
     {
         if ($data === null || $data === '' || $data === []) {
             return null;
@@ -242,16 +242,16 @@ class ActivityLogsTable
 
         $labels = static::fieldLabels();
         $hidden = static::hiddenFields();
-        $lines = [];
+        $lines  = [];
 
         foreach ($data as $key => $value) {
             if (in_array((string) $key, $hidden, true)) {
                 continue;
             }
 
-            $label = $labels[$key] ?? $key;
+            $label       = $labels[$key] ?? $key;
             $prettyValue = static::formatValue((string) $key, $value);
-            $lines[] = "{$label}: {$prettyValue}";
+            $lines[]     = "{$label}: {$prettyValue}";
         }
 
         return $lines === [] ? null : implode(PHP_EOL, $lines);
@@ -276,18 +276,31 @@ class ActivityLogsTable
                 TextColumn::make('actor_role')
                     ->label('Роль')
                     ->badge()
-                    ->formatStateUsing(fn ($state) => match ($state) {
-                        'admin' => 'admin',
-                        'supervisor' => 'supervisor',
-                        'manager' => 'manager',
-                        null => 'system',
-                        default => (string) $state,
+                    ->formatStateUsing(fn($state) => match ($state) {
+                        'admin'      => 'Адміністратор',
+                        'supervisor' => 'Керівник відділу',
+                        'manager'    => 'Менеджер',
+                        null         => 'Система',
+                        default      => (string) $state,
+                    })
+                    ->color(fn($state) => match ($state) {
+                        'admin'      => 'danger',
+                        'supervisor' => 'warning',
+                        'manager'    => 'info',
+                        null         => 'gray',
+                        default      => 'gray',
                     }),
 
                 TextColumn::make('action_label')
                     ->label('Дія')
                     ->badge()
-                    ->state(fn (ActivityLog $record) => $record->action_label),
+                    ->state(fn(ActivityLog $record) => $record->action_label)
+                    ->color(fn(ActivityLog $record) => match ($record->action) {
+                        'created' => 'success',
+                        'updated' => 'info',
+                        'deleted' => 'danger',
+                        default   => 'gray',
+                    }),
 
                 TextColumn::make('subject_type_label')
                     ->label('Сутність')
@@ -315,19 +328,19 @@ class ActivityLogsTable
                 SelectFilter::make('actor_role')
                     ->label('Роль')
                     ->options([
-                        'admin' => 'admin',
-                        'supervisor' => 'supervisor',
-                        'manager' => 'manager',
+                        'admin'      => 'Адміністратор',
+                        'supervisor' => 'Керівник відділу',
+                        'manager'    => 'Менеджер',
                     ]),
             ])
             ->recordActions([
                 ViewAction::make()
                     ->label('Деталі')
                     ->modalHeading('Перегляд запису активності')
-                    ->fillForm(fn (ActivityLog $record): array => [
-                        'description' => $record->description,
+                    ->fillForm(fn(ActivityLog $record): array=> [
+                        'description'   => $record->description,
                         'before_pretty' => self::prettifyChanges($record->before),
-                        'after_pretty' => self::prettifyChanges($record->after),
+                        'after_pretty'  => self::prettifyChanges($record->after),
                     ])
                     ->form([
                         Textarea::make('description')

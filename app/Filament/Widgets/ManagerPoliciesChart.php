@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Widgets;
 
 use App\Models\Policy;
@@ -18,7 +17,7 @@ class ManagerPoliciesChart extends ChartWidget
         /** @var User|null $user */
         $user = Auth::user();
 
-        return $user?->isAdmin() || $user?->isSupervisor();
+        return $user instanceof User && $user->isSupervisor();
     }
 
     protected function getData(): array
@@ -30,11 +29,11 @@ class ManagerPoliciesChart extends ChartWidget
             ->get(['id', 'name']);
 
         $labels = [];
-        $data = [];
+        $data   = [];
 
         foreach ($managers as $manager) {
             $labels[] = $manager->name;
-            $data[] = Policy::query()
+            $data[]   = Policy::query()
                 ->where('agent_id', $manager->id)
                 ->where('status', 'active')
                 ->count();
@@ -44,10 +43,10 @@ class ManagerPoliciesChart extends ChartWidget
             'datasets' => [
                 [
                     'label' => 'Активні поліси',
-                    'data' => $data,
+                    'data'  => $data,
                 ],
             ],
-            'labels' => $labels,
+            'labels'   => $labels,
         ];
     }
 

@@ -2,11 +2,19 @@
 
 namespace App\Providers\Filament;
 
+use App\Filament\Widgets\AdminProblemRecordsTable;
+use App\Filament\Widgets\AdminSystemStats;
 use App\Filament\Widgets\ClientsPoliciesTrendChart;
 use App\Filament\Widgets\ExpiringPoliciesTable;
+use App\Filament\Widgets\ManagerPerformanceTable;
 use App\Filament\Widgets\ManagerPoliciesChart;
+use App\Filament\Widgets\MyClaimNotesTable;
+use App\Filament\Widgets\MyNewLeadsTable;
 use App\Filament\Widgets\OverviewStats;
 use App\Filament\Widgets\PolicyStatusChart;
+use App\Filament\Widgets\RecentActivityLogTable;
+use App\Filament\Widgets\RecentInternalClaimNotesTable;
+use App\Filament\Widgets\PendingPasswordResetRequestsTable;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -47,11 +55,22 @@ class AdminPanelProvider extends PanelProvider
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
                 AccountWidget::class,
+
+                AdminSystemStats::class,
+                PendingPasswordResetRequestsTable::class,
+                RecentActivityLogTable::class,
+                AdminProblemRecordsTable::class,
+
+                ManagerPerformanceTable::class,
+                ManagerPoliciesChart::class,
+                RecentInternalClaimNotesTable::class,
+
                 OverviewStats::class,
                 ClientsPoliciesTrendChart::class,
                 PolicyStatusChart::class,
-                ManagerPoliciesChart::class,
                 ExpiringPoliciesTable::class,
+                MyNewLeadsTable::class,
+                MyClaimNotesTable::class,
             ])
             ->middleware([
                 EncryptCookies::class,

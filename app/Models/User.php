@@ -1,14 +1,13 @@
 <?php
-
 namespace App\Models;
 
 use App\Models\Concerns\LogsActivity;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasName;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Filament\Models\Contracts\FilamentUser;
-use Filament\Models\Contracts\HasName;
 
 class User extends Authenticatable implements FilamentUser, HasName
 {
@@ -30,8 +29,8 @@ class User extends Authenticatable implements FilamentUser, HasName
 
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'last_login_at' => 'datetime',
-        'is_active' => 'boolean',
+        'last_login_at'     => 'datetime',
+        'is_active'         => 'boolean',
     ];
 
     public function canAccessPanel(\Filament\Panel $panel): bool
@@ -64,6 +63,16 @@ class User extends Authenticatable implements FilamentUser, HasName
         return $this->hasMany(Claim::class, 'reported_by_id');
     }
 
+    public function passwordResetRequests()
+    {
+        return $this->hasMany(PasswordResetRequest::class);
+    }
+
+    public function resolvedPasswordResetRequests()
+    {
+        return $this->hasMany(PasswordResetRequest::class, 'resolved_by_id');
+    }
+    
     public function scopeManageableBy(Builder $query, ?self $user): Builder
     {
         if (! $user instanceof self) {
@@ -116,10 +125,10 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function getRoleLabelAttribute(): string
     {
         return match ($this->role) {
-            'admin' => 'Головний адміністратор',
+            'admin'      => 'Головний адміністратор',
             'supervisor' => 'Керівник відділу',
-            'manager' => 'Менеджер',
-            default => 'Невідомо',
+            'manager'    => 'Менеджер',
+            default      => 'Невідомо',
         };
     }
 

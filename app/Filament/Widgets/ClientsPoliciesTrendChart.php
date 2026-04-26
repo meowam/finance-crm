@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Widgets;
 
 use App\Models\Client;
@@ -14,20 +13,28 @@ class ClientsPoliciesTrendChart extends ChartWidget
 
     protected int|string|array $columnSpan = [
         'default' => 12,
-        'lg' => 8,
+        'lg'      => 8,
     ];
+
+    public static function canView(): bool
+    {
+        /** @var \App\Models\User|null $user */
+        $user = \Illuminate\Support\Facades\Auth::user();
+
+        return $user instanceof \App\Models\User  && $user->isManager();
+    }
 
     protected function getData(): array
     {
         /** @var User|null $user */
         $user = Auth::user();
 
-        $labels = [];
-        $clientsData = [];
+        $labels       = [];
+        $clientsData  = [];
         $policiesData = [];
 
         foreach (range(5, 0) as $monthsAgo) {
-            $date = now()->subMonths($monthsAgo);
+            $date     = now()->subMonths($monthsAgo);
             $labels[] = $date->translatedFormat('M Y');
 
             $clientsQuery = Client::query()
@@ -43,12 +50,12 @@ class ClientsPoliciesTrendChart extends ChartWidget
                 $policiesQuery->where('agent_id', $user->id);
             }
 
-            $clientsData[] = $clientsQuery->count();
+            $clientsData[]  = $clientsQuery->count();
             $policiesData[] = $policiesQuery->count();
         }
 
         $currentDate = now();
-        $labels[] = $currentDate->translatedFormat('M Y');
+        $labels[]    = $currentDate->translatedFormat('M Y');
 
         $currentClientsQuery = Client::query()
             ->whereYear('created_at', $currentDate->year)
@@ -63,25 +70,25 @@ class ClientsPoliciesTrendChart extends ChartWidget
             $currentPoliciesQuery->where('agent_id', $user->id);
         }
 
-        $clientsData[] = $currentClientsQuery->count();
+        $clientsData[]  = $currentClientsQuery->count();
         $policiesData[] = $currentPoliciesQuery->count();
 
         return [
             'datasets' => [
                 [
-                    'label' => $user?->isManager() ? 'Мої нові клієнти' : 'Нові клієнти',
-                    'data' => $clientsData,
-                    'fill' => false,
+                    'label'   => $user?->isManager() ? 'Мої нові клієнти' : 'Нові клієнти',
+                    'data'    => $clientsData,
+                    'fill'    => false,
                     'tension' => 0.3,
                 ],
                 [
-                    'label' => $user?->isManager() ? 'Мої нові поліси' : 'Нові поліси',
-                    'data' => $policiesData,
-                    'fill' => false,
+                    'label'   => $user?->isManager() ? 'Мої нові поліси' : 'Нові поліси',
+                    'data'    => $policiesData,
+                    'fill'    => false,
                     'tension' => 0.3,
                 ],
             ],
-            'labels' => $labels,
+            'labels'   => $labels,
         ];
     }
 

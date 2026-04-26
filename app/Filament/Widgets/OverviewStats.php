@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Widgets;
 
 use App\Models\Claim;
@@ -15,21 +14,29 @@ class OverviewStats extends BaseWidget
 {
     protected ?string $heading = 'Ключові показники';
 
+    public static function canView(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user instanceof User && $user->isManager();
+    }
+    
     protected function getStats(): array
     {
         /** @var User|null $user */
         $user = Auth::user();
 
-        $clientsQuery = Client::query();
-        $policiesQuery = Policy::query();
-        $claimsQuery = Claim::query();
+        $clientsQuery         = Client::query();
+        $policiesQuery        = Policy::query();
+        $claimsQuery          = Claim::query();
         $overduePaymentsQuery = PolicyPayment::query()->where('status', 'overdue');
 
         if ($user?->isManager()) {
             $clientsQuery->where('assigned_user_id', $user->id);
             $policiesQuery->where('agent_id', $user->id);
-            $claimsQuery->whereHas('policy', fn ($q) => $q->where('agent_id', $user->id));
-            $overduePaymentsQuery->whereHas('policy', fn ($q) => $q->where('agent_id', $user->id));
+            $claimsQuery->whereHas('policy', fn($q) => $q->where('agent_id', $user->id));
+            $overduePaymentsQuery->whereHas('policy', fn($q) => $q->where('agent_id', $user->id));
         }
 
         if ($user?->isManager()) {

@@ -164,7 +164,10 @@ class ManagerReportsService
             )
             ->when(
                 $filters['client_source'] ?? null,
-                fn (Builder $query, $source) => $query->whereHas('client', fn (Builder $clientQuery) => $clientQuery->where('source', $source))
+                fn (Builder $query, $source) => $query->whereHas(
+                    'client',
+                    fn (Builder $clientQuery) => $clientQuery->where('source', $source)
+                )
             )
             ->whereBetween('created_at', [$from, $until]);
     }
@@ -182,7 +185,10 @@ class ManagerReportsService
                 }
 
                 if (filled($filters['client_source'] ?? null)) {
-                    $policyQuery->whereHas('client', fn (Builder $clientQuery) => $clientQuery->where('source', $filters['client_source']));
+                    $policyQuery->whereHas(
+                        'client',
+                        fn (Builder $clientQuery) => $clientQuery->where('source', $filters['client_source'])
+                    );
                 }
             })
             ->whereBetween('created_at', [$from, $until]);
@@ -193,15 +199,20 @@ class ManagerReportsService
         [$from, $until] = $this->resolveDates($filters);
 
         return Claim::query()
-            ->where('reported_by_id', $manager->id)
-            ->when(
-                $filters['client_source'] ?? null,
-                fn (Builder $query, $source) => $query->whereHas('policy.client', fn (Builder $clientQuery) => $clientQuery->where('source', $source))
-            )
-            ->when(
-                $filters['policy_status'] ?? null,
-                fn (Builder $query, $status) => $query->whereHas('policy', fn (Builder $policyQuery) => $policyQuery->where('status', $status))
-            )
+            ->whereHas('policy', function (Builder $policyQuery) use ($manager, $filters) {
+                $policyQuery->where('agent_id', $manager->id);
+
+                if (filled($filters['policy_status'] ?? null)) {
+                    $policyQuery->where('status', $filters['policy_status']);
+                }
+
+                if (filled($filters['client_source'] ?? null)) {
+                    $policyQuery->whereHas(
+                        'client',
+                        fn (Builder $clientQuery) => $clientQuery->where('source', $filters['client_source'])
+                    );
+                }
+            })
             ->whereBetween('reported_at', [$from, $until]);
     }
 
