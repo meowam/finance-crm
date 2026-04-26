@@ -10,15 +10,21 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
+
             InsuranceCategorySeeder::class,
             InsuranceCompanySeeder::class,
             InsuranceProductSeeder::class,
             InsuranceOfferSeeder::class,
+
             ClientSeeder::class,
             ClientContactSeeder::class,
+            LeadRequestSeeder::class,
+
             PolicySeeder::class,
             ClaimSeeder::class,
-            // ActivitySeeder::class,
+
+            PasswordResetRequestSeeder::class,
+            ActivityLogSeeder::class,
         ]);
     }
 }
