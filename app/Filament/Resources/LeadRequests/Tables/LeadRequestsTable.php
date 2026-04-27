@@ -31,6 +31,15 @@ class LeadRequestsTable
         return static::hasExistingClient($record);
     }
 
+    protected static function sourceOptions(): array
+    {
+        return [
+            'landing' => 'Лендінг',
+            'manual' => 'Створено вручну',
+            'recommendation' => 'Рекомендація',
+        ];
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -65,7 +74,8 @@ class LeadRequestsTable
                     ->label('Джерело')
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'landing' => 'Лендінг',
-                        'online' => 'Онлайн-звернення',
+                        'manual' => 'Створено вручну',
+                        'online' => 'Створено вручну',
                         'recommendation' => 'Рекомендація',
                         default => (string) $state,
                     })
@@ -112,6 +122,10 @@ class LeadRequestsTable
                         'converted' => 'Конвертовано',
                         'rejected' => 'Відхилено',
                     ]),
+
+                SelectFilter::make('source')
+                    ->label('Джерело')
+                    ->options(static::sourceOptions()),
             ])
             ->recordActions([
                 EditAction::make()->label('Редагувати'),

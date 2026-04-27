@@ -33,6 +33,28 @@ class LeadRequestForm
             ->exists();
     }
 
+    protected static function interestOptions(): array
+    {
+        return [
+            'Автострахування' => 'Автострахування',
+            'Страхування майна' => 'Страхування майна',
+            'Здоров’я та життя' => 'Здоров’я та життя',
+            'Страхування подорожей' => 'Страхування подорожей',
+            'Корпоративні програми' => 'Корпоративні програми',
+            'Індивідуальне рішення' => 'Індивідуальне рішення',
+            'Інше' => 'Інше',
+        ];
+    }
+
+    protected static function sourceOptions(): array
+    {
+        return [
+            'landing' => 'Лендінг',
+            'manual' => 'Створено вручну',
+            'recommendation' => 'Рекомендація',
+        ];
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -53,17 +75,48 @@ class LeadRequestForm
 
                 Select::make('status')
                     ->label('Статус')
-                    ->options([
-                        'new' => 'Нова',
-                        'in_progress' => 'Опрацьовується',
-                        'converted' => 'Конвертовано',
-                        'rejected' => 'Відхилено',
-                    ])
+                    ->options(function ($record): array {
+                        $options = [
+                            'new' => 'Нова',
+                            'in_progress' => 'Опрацьовується',
+                            'rejected' => 'Відхилено',
+                        ];
+
+                        $isConverted = $record
+                            && (string) $record->status === 'converted'
+                            && filled($record->converted_client_id);
+
+                        if ($isConverted) {
+                            $options['converted'] = 'Конвертовано';
+                        }
+
+                        return $options;
+                    })
                     ->native(false)
                     ->default('new')
                     ->required()
-                    ->disabled(fn (?string $operation) => $operation === 'create' || static::isProblemReassignMode())
-                    ->dehydrated(true),
+                    ->disabled(function (?string $operation, $record): bool {
+                        if ($operation === 'create' || static::isProblemReassignMode()) {
+                            return true;
+                        }
+
+                        return $record
+                            && (string) $record->status === 'converted'
+                            && filled($record->converted_client_id);
+                    })
+                    ->dehydrated(true)
+                    ->rules(function ($record): array {
+                        $allowedStatuses = ['new', 'in_progress', 'rejected'];
+
+                        if ($record && (string) $record->status === 'converted' && filled($record->converted_client_id)) {
+                            $allowedStatuses[] = 'converted';
+                        }
+
+                        return [
+                            'required',
+                            Rule::in($allowedStatuses),
+                        ];
+                    }),
 
                 TextInput::make('first_name')
                     ->label(fn (Get $get) => $get('type') === 'company' ? "Ім'я контактної особи" : "Ім'я")
@@ -103,24 +156,30 @@ class LeadRequestForm
                     ->maxLength(150)
                     ->disabled(fn () => static::isProblemReassignMode()),
 
-                TextInput::make('interest')
+                Select::make('interest')
                     ->label('Цікавить продукт / послуга')
-                    ->placeholder('Наприклад: автострахування, медичне страхування...')
-                    ->maxLength(150)
+                    ->placeholder('Оберіть напрям звернення')
+                    ->options(static::interestOptions())
+                    ->native(false)
+                    ->searchable()
+                    ->required()
+                    ->rules([
+                        'required',
+                        Rule::in(array_keys(static::interestOptions())),
+                    ])
                     ->columnSpan(2)
                     ->disabled(fn () => static::isProblemReassignMode()),
 
                 Select::make('source')
                     ->label('Джерело')
-                    ->options([
-                        'landing' => 'Лендінг',
-                        'online' => 'Онлайн-звернення',
-                        'recommendation' => 'Рекомендація',
-                    ])
+                    ->options(static::sourceOptions())
                     ->native(false)
-                    ->default('online')
+                    ->default('manual')
                     ->required()
-                    ->rules([Rule::in(['landing', 'online', 'recommendation'])])
+                    ->rules([
+                        'required',
+                        Rule::in(array_keys(static::sourceOptions())),
+                    ])
                     ->disabled(fn () => static::isProblemReassignMode()),
 
                 Select::make('assigned_user_id')

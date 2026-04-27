@@ -67,6 +67,35 @@ class EditLeadRequest extends EditRecord
         return $data;
     }
 
+    protected function ensureConvertedStatusIsConsistent(array $data): array
+    {
+        $currentStatus = (string) $this->record->status;
+        $newStatus = (string) ($data['status'] ?? $currentStatus);
+        $hasConvertedClient = filled($this->record->converted_client_id);
+
+        if ($newStatus === 'converted' && ! $hasConvertedClient) {
+            throw ValidationException::withMessages([
+                'status' => 'Статус «Конвертовано» встановлюється лише автоматично після створення клієнта із заявки.',
+            ]);
+        }
+
+        if ($currentStatus === 'converted' && $hasConvertedClient && $newStatus !== 'converted') {
+            throw ValidationException::withMessages([
+                'status' => 'Конвертовану заявку не можна повернути в інший статус вручну.',
+            ]);
+        }
+
+        if (! in_array($newStatus, ['new', 'in_progress', 'rejected', 'converted'], true)) {
+            throw ValidationException::withMessages([
+                'status' => 'Недопустиме значення статусу заявки.',
+            ]);
+        }
+
+        $data['status'] = $newStatus;
+
+        return $data;
+    }
+
     protected function mutateFormDataBeforeSave(array $data): array
     {
         /** @var User|null $user */
@@ -82,6 +111,8 @@ class EditLeadRequest extends EditRecord
                 'assigned_user_id' => $data['assigned_user_id'],
             ];
         }
+
+        $data = $this->ensureConvertedStatusIsConsistent($data);
 
         return $data;
     }

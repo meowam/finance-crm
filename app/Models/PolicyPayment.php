@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use App\Enums\PaymentMethod;
@@ -17,6 +18,12 @@ class PolicyPayment extends Model
     public const ACTIVE_STATUSES = [
         PaymentStatus::Paid->value,
         PaymentStatus::Scheduled->value,
+    ];
+
+    public const CANCEL_WHEN_POLICY_IS_PAID_STATUSES = [
+        PaymentStatus::Draft->value,
+        PaymentStatus::Scheduled->value,
+        PaymentStatus::Overdue->value,
     ];
 
     protected $fillable = [
@@ -110,8 +117,29 @@ class PolicyPayment extends Model
         return self::query()
             ->where('policy_id', $policyId)
             ->whereIn('status', self::ACTIVE_STATUSES)
-            ->when($ignorePaymentId, fn(Builder $query) => $query->where('id', '!=', $ignorePaymentId))
+            ->when($ignorePaymentId, fn (Builder $query) => $query->where('id', '!=', $ignorePaymentId))
             ->exists();
+    }
+
+    protected static function hasAnotherPaidPayment(int $policyId, ?int $ignorePaymentId = null): bool
+    {
+        return self::query()
+            ->where('policy_id', $policyId)
+            ->where('status', PaymentStatus::Paid->value)
+            ->when($ignorePaymentId, fn (Builder $query) => $query->where('id', '!=', $ignorePaymentId))
+            ->exists();
+    }
+
+    protected static function cancelOtherUnfinishedPaymentsForPolicy(int $policyId, int $paidPaymentId): void
+    {
+        self::query()
+            ->where('policy_id', $policyId)
+            ->where('id', '!=', $paidPaymentId)
+            ->whereIn('status', self::CANCEL_WHEN_POLICY_IS_PAID_STATUSES)
+            ->update([
+                'status' => PaymentStatus::Canceled->value,
+                'updated_at' => now(),
+            ]);
     }
 
     protected static function booted(): void
@@ -130,6 +158,15 @@ class PolicyPayment extends Model
             $method = self::normalizeMethod($model);
             $status = self::normalizeStatus($model);
 
+            if (
+                filled($model->policy_id)
+                && $status === PaymentStatus::Draft->value
+                && self::hasAnotherPaidPayment((int) $model->policy_id, $model->exists ? (int) $model->id : null)
+            ) {
+                $model->status = PaymentStatus::Canceled->value;
+                $status = PaymentStatus::Canceled->value;
+            }
+
             $allowed = self::allowedStatusesForMethod($method);
 
             if (! in_array($status, $allowed, true)) {
@@ -143,11 +180,11 @@ class PolicyPayment extends Model
                 $model->due_date = Carbon::parse($base)->addDays(7)->toDateString();
             }
 
-            if (in_array($method, ['cash', 'card'], true) && $status === 'paid' && blank($model->paid_at)) {
+            if (in_array($method, ['cash', 'card'], true) && $status === PaymentStatus::Paid->value && blank($model->paid_at)) {
                 $model->paid_at = now();
             }
 
-            if ($method === 'transfer' && blank($model->initiated_at) && in_array($status, ['scheduled', 'paid'], true)) {
+            if ($method === 'transfer' && blank($model->initiated_at) && in_array($status, [PaymentStatus::Scheduled->value, PaymentStatus::Paid->value], true)) {
                 $model->initiated_at = now();
             }
 
@@ -163,6 +200,15 @@ class PolicyPayment extends Model
         });
 
         static::saved(function (PolicyPayment $model) {
+            $status = self::normalizeStatus($model);
+
+            if ($status === PaymentStatus::Paid->value && filled($model->policy_id)) {
+                self::cancelOtherUnfinishedPaymentsForPolicy(
+                    (int) $model->policy_id,
+                    (int) $model->id
+                );
+            }
+
             $policy = $model->policy;
 
             if (! $policy) {

@@ -35,7 +35,7 @@ class NotificationRedirectController extends Controller
         }
     }
 
-    protected function isSafeInternalAdminUrl(string $url): bool
+    protected function isSafeInternalAdminPath(string $url): bool
     {
         $url = trim($url);
 
@@ -43,19 +43,35 @@ class NotificationRedirectController extends Controller
             return false;
         }
 
-        if (filter_var($url, FILTER_VALIDATE_URL) !== false) {
-            $appUrl = rtrim((string) config('app.url'), '/');
-
-            if ($appUrl === '') {
-                return false;
-            }
-
-            return Str::startsWith($url, $appUrl . '/admin');
+        if (str_contains($url, '\\')) {
+            return false;
         }
 
-        $normalizedPath = '/' . ltrim($url, '/');
+        if (Str::startsWith($url, ['//', 'http://', 'https://'])) {
+            return false;
+        }
 
-        return Str::startsWith($normalizedPath, '/admin');
+        $parts = parse_url($url);
+
+        if ($parts === false) {
+            return false;
+        }
+
+        if (isset($parts['scheme']) || isset($parts['host']) || isset($parts['user']) || isset($parts['pass'])) {
+            return false;
+        }
+
+        $path = $parts['path'] ?? '';
+
+        if ($path === '') {
+            return false;
+        }
+
+        if (! Str::startsWith($path, '/')) {
+            return false;
+        }
+
+        return $path === '/admin' || Str::startsWith($path, '/admin/');
     }
 
     protected function resolvePolicyRedirectUrl(UserNotification $notification, User $user): ?string
@@ -69,12 +85,14 @@ class NotificationRedirectController extends Controller
 
             abort_unless($policy->isVisibleTo($user), 403);
 
-            return PolicyResource::getUrl('edit', ['record' => $policy->getKey()]);
+            return PolicyResource::getUrl('edit', [
+                'record' => $policy->getKey(),
+            ]);
         }
 
         $legacyUrl = $data['policy_url'] ?? null;
 
-        if (! is_string($legacyUrl) || ! $this->isSafeInternalAdminUrl($legacyUrl)) {
+        if (! is_string($legacyUrl) || ! $this->isSafeInternalAdminPath($legacyUrl)) {
             return null;
         }
 

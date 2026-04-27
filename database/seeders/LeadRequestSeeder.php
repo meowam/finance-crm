@@ -48,7 +48,7 @@ class LeadRequestSeeder extends Seeder
                 'phone' => $client->primary_phone,
                 'email' => $client->primary_email,
                 'interest' => $this->randomInterest($faker),
-                'source' => $faker->randomElement(['landing', 'online', 'recommendation']),
+                'source' => $faker->randomElement(['landing', 'manual', 'recommendation']),
                 'status' => 'converted',
                 'comment' => 'Лід уже конвертовано у клієнта.',
                 'assigned_user_id' => $client->assigned_user_id,
@@ -73,9 +73,9 @@ class LeadRequestSeeder extends Seeder
             'landing',
             'landing',
             'landing',
-            'online',
-            'online',
-            'online',
+            'manual',
+            'manual',
+            'manual',
             'recommendation',
             'recommendation',
         ];
@@ -130,14 +130,12 @@ class LeadRequestSeeder extends Seeder
     {
         return $faker->randomElement([
             'Автострахування',
-            'КАСКО',
-            'ОСЦПВ',
-            'Медичне страхування',
             'Страхування майна',
+            'Здоров’я та життя',
             'Страхування подорожей',
-            'Корпоративна програма для співробітників',
-            'Страхування відповідальності',
-            'Індивідуальне страхове рішення',
+            'Корпоративні програми',
+            'Індивідуальне рішення',
+            'Інше',
         ]);
     }
 

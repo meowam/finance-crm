@@ -36,6 +36,17 @@ class ClientForm
             ->exists();
     }
 
+    protected static function sourceOptions(): array
+    {
+        return [
+            'office' => 'Офіс',
+            'landing' => 'Лендінг',
+            'manual' => 'Створено вручну',
+            'recommendation' => 'Рекомендація',
+            'other' => 'Інше',
+        ];
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -262,16 +273,13 @@ class ClientForm
 
                 Select::make('source')
                     ->label('Канал звернення')
-                    ->options([
-                        'office' => 'Офіс',
-                        'online' => 'Онлайн',
-                        'recommendation' => 'Рекомендація',
-                        'landing' => 'Лендінг',
-                        'other' => 'Інше',
-                    ])
+                    ->options(static::sourceOptions())
                     ->native(false)
                     ->required()
-                    ->rules([Rule::in(['office', 'online', 'recommendation', 'landing', 'other'])])
+                    ->rules([
+                        'required',
+                        Rule::in(array_keys(static::sourceOptions())),
+                    ])
                     ->default('office')
                     ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
