@@ -61,7 +61,7 @@ class MyNewLeadsTable extends BaseWidget
                     ->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'new' => 'Нова',
-                        'in_progress' => 'В роботі',
+                        'in_progress' => 'Опрацьовується',
                         default => (string) $state,
                     })
                     ->color(fn ($state) => match ($state) {

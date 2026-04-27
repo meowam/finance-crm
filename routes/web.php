@@ -5,7 +5,9 @@ use App\Http\Controllers\NotificationRedirectController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [LandingController::class, 'index'])->name('landing.index');
-Route::post('/lead-request', [LandingController::class, 'store'])->name('landing.store');
+Route::post('/lead-request', [LandingController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('landing.store');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/notifications/{notification}/open-policy', [NotificationRedirectController::class, 'openPolicy'])

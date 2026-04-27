@@ -63,7 +63,6 @@ class LeadRequestsTable
 
                 TextColumn::make('source')
                     ->label('Джерело')
-                    ->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'office' => 'Офіс',
                         'online' => 'Онлайн',
@@ -71,14 +70,15 @@ class LeadRequestsTable
                         'landing' => 'Лендінг',
                         'other' => 'Інше',
                         default => (string) $state,
-                    }),
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
                     ->formatStateUsing(fn ($state) => match ($state) {
                         'new' => 'Нова',
-                        'in_progress' => 'В роботі',
+                        'in_progress' => 'Опрацьовується',
                         'converted' => 'Конвертовано',
                         'rejected' => 'Відхилено',
                         default => (string) $state,
@@ -110,19 +110,9 @@ class LeadRequestsTable
                     ->label('Статус')
                     ->options([
                         'new' => 'Нова',
-                        'in_progress' => 'В роботі',
+                        'in_progress' => 'Опрацьовується',
                         'converted' => 'Конвертовано',
                         'rejected' => 'Відхилено',
-                    ]),
-
-                SelectFilter::make('source')
-                    ->label('Джерело')
-                    ->options([
-                        'office' => 'Офіс',
-                        'online' => 'Онлайн',
-                        'recommendation' => 'Рекомендація',
-                        'landing' => 'Лендінг',
-                        'other' => 'Інше',
                     ]),
             ])
             ->recordActions([

@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Widgets;
 
 use App\Models\Claim;
@@ -21,59 +22,47 @@ class OverviewStats extends BaseWidget
 
         return $user instanceof User && $user->isManager();
     }
-    
+
     protected function getStats(): array
     {
         /** @var User|null $user */
         $user = Auth::user();
 
-        $clientsQuery         = Client::query();
-        $policiesQuery        = Policy::query();
-        $claimsQuery          = Claim::query();
-        $overduePaymentsQuery = PolicyPayment::query()->where('status', 'overdue');
-
-        if ($user?->isManager()) {
-            $clientsQuery->where('assigned_user_id', $user->id);
-            $policiesQuery->where('agent_id', $user->id);
-            $claimsQuery->whereHas('policy', fn($q) => $q->where('agent_id', $user->id));
-            $overduePaymentsQuery->whereHas('policy', fn($q) => $q->where('agent_id', $user->id));
+        if (! $user instanceof User || ! $user->isManager()) {
+            return [];
         }
 
-        if ($user?->isManager()) {
-            return [
-                Stat::make('Мої клієнти', (string) $clientsQuery->count())
-                    ->description('Усі закріплені за вами')
-                    ->icon('heroicon-o-users'),
+        $clientsCount = Client::query()
+            ->where('assigned_user_id', $user->id)
+            ->count();
 
-                Stat::make('Мої поліси', (string) $policiesQuery->count())
-                    ->description('Усі ваші поліси')
-                    ->icon('heroicon-o-document-text'),
+        $policiesCount = Policy::query()
+            ->where('agent_id', $user->id)
+            ->count();
 
-                Stat::make('Мої страхові випадки', (string) $claimsQuery->count())
-                    ->description('Усі кейси по ваших полісах')
-                    ->icon('heroicon-o-shield-exclamation'),
+        $claimsCount = Claim::query()
+            ->whereHas('policy', fn ($query) => $query->where('agent_id', $user->id))
+            ->count();
 
-                Stat::make('Прострочені оплати', (string) $overduePaymentsQuery->count())
-                    ->description('Потребують уваги')
-                    ->icon('heroicon-o-exclamation-triangle')
-                    ->color('danger'),
-            ];
-        }
+        $overduePaymentsCount = PolicyPayment::query()
+            ->where('status', 'overdue')
+            ->whereHas('policy', fn ($query) => $query->where('agent_id', $user->id))
+            ->count();
 
         return [
-            Stat::make('Усього клієнтів', (string) $clientsQuery->count())
-                ->description('Усі клієнти в системі')
+            Stat::make('Мої клієнти', (string) $clientsCount)
+                ->description('Усі закріплені за вами')
                 ->icon('heroicon-o-users'),
 
-            Stat::make('Усього полісів', (string) $policiesQuery->count())
-                ->description('Усі оформлені поліси')
+            Stat::make('Мої поліси', (string) $policiesCount)
+                ->description('Усі ваші поліси')
                 ->icon('heroicon-o-document-text'),
 
-            Stat::make('Страхові випадки', (string) $claimsQuery->count())
-                ->description('Усі кейси в роботі та архіві')
+            Stat::make('Мої страхові випадки', (string) $claimsCount)
+                ->description('Усі кейси по ваших полісах')
                 ->icon('heroicon-o-shield-exclamation'),
 
-            Stat::make('Прострочені оплати', (string) $overduePaymentsQuery->count())
+            Stat::make('Прострочені оплати', (string) $overduePaymentsCount)
                 ->description('Потребують уваги')
                 ->icon('heroicon-o-exclamation-triangle')
                 ->color('danger'),

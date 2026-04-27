@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Widgets;
 
 use App\Models\Client;
@@ -18,10 +19,10 @@ class ClientsPoliciesTrendChart extends ChartWidget
 
     public static function canView(): bool
     {
-        /** @var \App\Models\User|null $user */
-        $user = \Illuminate\Support\Facades\Auth::user();
+        /** @var User|null $user */
+        $user = Auth::user();
 
-        return $user instanceof \App\Models\User  && $user->isManager();
+        return $user instanceof User && $user->isManager();
     }
 
     protected function getData(): array
@@ -29,12 +30,13 @@ class ClientsPoliciesTrendChart extends ChartWidget
         /** @var User|null $user */
         $user = Auth::user();
 
-        $labels       = [];
-        $clientsData  = [];
+        $labels = [];
+        $clientsData = [];
         $policiesData = [];
 
         foreach (range(5, 0) as $monthsAgo) {
-            $date     = now()->subMonths($monthsAgo);
+            $date = now()->subMonths($monthsAgo);
+
             $labels[] = $date->translatedFormat('M Y');
 
             $clientsQuery = Client::query()
@@ -45,50 +47,31 @@ class ClientsPoliciesTrendChart extends ChartWidget
                 ->whereYear('created_at', $date->year)
                 ->whereMonth('created_at', $date->month);
 
-            if ($user?->isManager()) {
+            if ($user instanceof User && $user->isManager()) {
                 $clientsQuery->where('assigned_user_id', $user->id);
                 $policiesQuery->where('agent_id', $user->id);
             }
 
-            $clientsData[]  = $clientsQuery->count();
+            $clientsData[] = $clientsQuery->count();
             $policiesData[] = $policiesQuery->count();
         }
-
-        $currentDate = now();
-        $labels[]    = $currentDate->translatedFormat('M Y');
-
-        $currentClientsQuery = Client::query()
-            ->whereYear('created_at', $currentDate->year)
-            ->whereMonth('created_at', $currentDate->month);
-
-        $currentPoliciesQuery = Policy::query()
-            ->whereYear('created_at', $currentDate->year)
-            ->whereMonth('created_at', $currentDate->month);
-
-        if ($user?->isManager()) {
-            $currentClientsQuery->where('assigned_user_id', $user->id);
-            $currentPoliciesQuery->where('agent_id', $user->id);
-        }
-
-        $clientsData[]  = $currentClientsQuery->count();
-        $policiesData[] = $currentPoliciesQuery->count();
 
         return [
             'datasets' => [
                 [
-                    'label'   => $user?->isManager() ? 'Мої нові клієнти' : 'Нові клієнти',
-                    'data'    => $clientsData,
-                    'fill'    => false,
+                    'label' => 'Мої нові клієнти',
+                    'data' => $clientsData,
+                    'fill' => false,
                     'tension' => 0.3,
                 ],
                 [
-                    'label'   => $user?->isManager() ? 'Мої нові поліси' : 'Нові поліси',
-                    'data'    => $policiesData,
-                    'fill'    => false,
+                    'label' => 'Мої нові поліси',
+                    'data' => $policiesData,
+                    'fill' => false,
                     'tension' => 0.3,
                 ],
             ],
-            'labels'   => $labels,
+            'labels' => $labels,
         ];
     }
 

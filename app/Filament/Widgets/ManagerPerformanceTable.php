@@ -44,7 +44,7 @@ class ManagerPerformanceTable extends BaseWidget
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('open_leads')
-                    ->label('Ліди new/in progress')
+                    ->label('Активні заявки')
                     ->state(fn (User $record) => LeadRequest::query()
                         ->where('assigned_user_id', $record->id)
                         ->whereIn('status', ['new', 'in_progress'])
@@ -74,7 +74,7 @@ class ManagerPerformanceTable extends BaseWidget
                     ->color('success'),
 
                 Tables\Columns\TextColumn::make('overdue_payments')
-                    ->label('Overdue оплат')
+                    ->label('Прострочені оплати')
                     ->state(fn (User $record) => PolicyPayment::query()
                         ->where('status', 'overdue')
                         ->whereHas('policy', fn (Builder $query) => $query->where('agent_id', $record->id))
@@ -84,7 +84,7 @@ class ManagerPerformanceTable extends BaseWidget
                     ->color('danger'),
 
                 Tables\Columns\TextColumn::make('refunded_payments')
-                    ->label('Refunded оплат')
+                    ->label('Повернені оплати')
                     ->state(fn (User $record) => PolicyPayment::query()
                         ->where('status', 'refunded')
                         ->whereHas('policy', fn (Builder $query) => $query->where('agent_id', $record->id))

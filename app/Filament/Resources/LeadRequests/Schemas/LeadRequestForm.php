@@ -36,7 +36,7 @@ class LeadRequestForm
                     ->label('Статус')
                     ->options([
                         'new' => 'Нова',
-                        'in_progress' => 'В роботі',
+                        'in_progress' => 'Опрацьовується',
                         'converted' => 'Конвертовано',
                         'rejected' => 'Відхилено',
                     ])

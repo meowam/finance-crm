@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\Policies\Tables;
 
 use App\Filament\Resources\Users\UserResource;
-use App\Models\Client;
 use App\Models\Policy;
 use App\Models\User;
 use BackedEnum;
@@ -13,9 +12,7 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class PoliciesTable
 {
@@ -39,17 +36,10 @@ class PoliciesTable
                 $query
                     ->visibleTo($user)
                     ->with([
-                        'client:id,primary_email,first_name,last_name,middle_name,company_name,type',
+                        'client:id,primary_email,primary_phone,document_number,tax_id,first_name,last_name,middle_name,company_name,type',
                         'insuranceOffer.insuranceProduct:id,name',
                         'agent:id,name',
-                    ])
-                    ->addSelect([
-                        'latest_payment_status' => DB::query()
-                            ->from('policy_payments as lp')
-                            ->select('lp.status')
-                            ->whereColumn('lp.policy_id', 'policies.id')
-                            ->orderByDesc('lp.id')
-                            ->limit(1),
+                        'latestPayment',
                     ]);
             })
             ->defaultPaginationPageOption(25)
@@ -59,28 +49,28 @@ class PoliciesTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('latest_payment_status')
+                TextColumn::make('latestPayment.status')
                     ->label('Оплата')
                     ->badge()
                     ->formatStateUsing(fn ($state) => match (self::low($state)) {
-                        'paid'      => 'Сплачено',
+                        'paid' => 'Сплачено',
                         'scheduled' => 'Очікує',
-                        'overdue'   => 'Прострочено',
-                        'canceled'  => 'Скасовано',
-                        'draft'     => 'Чернетка',
+                        'overdue' => 'Прострочено',
+                        'canceled' => 'Скасовано',
+                        'draft' => 'Чернетка',
                         'refunded' => 'Повернено',
-                        ''          => '—',
-                        default     => self::str($state),
+                        '' => '—',
+                        default => self::str($state),
                     })
                     ->color(fn ($state) => match (self::low($state)) {
-                        'paid'      => 'success',
+                        'paid' => 'success',
                         'scheduled' => 'warning',
-                        'overdue'   => 'danger',
-                        'canceled'  => 'danger',
-                        'draft'     => 'gray',
+                        'overdue' => 'danger',
+                        'canceled' => 'danger',
+                        'draft' => 'gray',
                         'refunded' => 'danger',
-                        ''          => 'gray',
-                        default     => 'gray',
+                        '' => 'gray',
+                        default => 'gray',
                     })
                     ->toggleable(),
 
@@ -150,18 +140,18 @@ class PoliciesTable
                     ->label('Статус')
                     ->badge()
                     ->formatStateUsing(fn ($state) => match (self::low($state)) {
-                        'draft'     => 'чернетка',
-                        'active'    => 'активний',
+                        'draft' => 'чернетка',
+                        'active' => 'активний',
                         'completed' => 'завершено',
-                        'canceled'  => 'скасовано',
-                        default     => self::str($state),
+                        'canceled' => 'скасовано',
+                        default => self::str($state),
                     })
                     ->color(fn ($state) => match (self::low($state)) {
-                        'draft'     => 'warning',
-                        'active'    => 'success',
+                        'draft' => 'warning',
+                        'active' => 'success',
                         'completed' => 'gray',
-                        'canceled'  => 'danger',
-                        default     => 'gray',
+                        'canceled' => 'danger',
+                        default => 'gray',
                     })
                     ->sortable()
                     ->toggleable(),
@@ -198,11 +188,11 @@ class PoliciesTable
                 TextColumn::make('payment_frequency')
                     ->label('Періодичність')
                     ->formatStateUsing(fn ($state) => match (self::str($state)) {
-                        'once'      => 'разово',
-                        'monthly'   => 'щомісяця',
+                        'once' => 'разово',
+                        'monthly' => 'щомісяця',
                         'quarterly' => 'щокварталу',
-                        'yearly'    => 'щороку',
-                        default     => self::str($state),
+                        'yearly' => 'щороку',
+                        default => self::str($state),
                     })
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -229,61 +219,32 @@ class PoliciesTable
                 SelectFilter::make('status')
                     ->label('Статус')
                     ->options([
-                        'draft'     => 'чернетка',
-                        'active'    => 'активний',
+                        'draft' => 'чернетка',
+                        'active' => 'активний',
                         'completed' => 'завершено',
-                        'canceled'  => 'скасовано',
+                        'canceled' => 'скасовано',
                     ]),
 
-                SelectFilter::make('latest_payment_status')
+                SelectFilter::make('payment_status')
                     ->label('Оплата')
                     ->options([
-                        'draft'     => 'Чернетка',
+                        'draft' => 'Чернетка',
                         'scheduled' => 'Очікує',
-                        'paid'      => 'Сплачено',
-                        'overdue'   => 'Прострочено',
+                        'paid' => 'Сплачено',
+                        'overdue' => 'Прострочено',
                         'refunded' => 'Повернено',
-                        'canceled'  => 'Скасовано',
+                        'canceled' => 'Скасовано',
                     ])
-                    ->query(function ($query, $value) {
-                        if (! $value) {
+                    ->query(function (EloquentBuilder $query, array $data): EloquentBuilder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
                             return $query;
                         }
 
-                        $latestSub = DB::query()
-                            ->from('policy_payments as t')
-                            ->selectRaw('MAX(t.id)')
-                            ->whereColumn('t.policy_id', 'policies.id');
-
-                        return $query->whereIn('id', function (Builder $q) use ($value, $latestSub) {
-                            $q->from('policies as p2')
-                                ->select('p2.id')
-                                ->whereExists(function (Builder $inner) use ($value, $latestSub) {
-                                    $inner->from('policy_payments as lp2')
-                                        ->select(DB::raw(1))
-                                        ->whereColumn('lp2.policy_id', 'p2.id')
-                                        ->where('lp2.id', '=', $latestSub)
-                                        ->where('lp2.status', '=', $value);
-                                });
+                        return $query->whereHas('latestPayment', function (EloquentBuilder $paymentQuery) use ($value) {
+                            $paymentQuery->where('status', $value);
                         });
-                    }),
-
-                SelectFilter::make('client_id')
-                    ->label('Клієнт')
-                    ->options(function (): array {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return Client::query()
-                            ->visibleTo($user)
-                            ->orderBy('last_name')
-                            ->orderBy('first_name')
-                            ->limit(100)
-                            ->get()
-                            ->mapWithKeys(function (Client $client) {
-                                return [$client->id => $client->display_label];
-                            })
-                            ->toArray();
                     }),
             ])
             ->recordActions([
