@@ -5,7 +5,6 @@ namespace App\Filament\Pages;
 use App\Models\User;
 use App\Services\Reports\ManagerReportsService;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Select;
 use Filament\Schemas\Concerns\InteractsWithSchemas;
 use Filament\Schemas\Contracts\HasSchemas;
@@ -89,7 +88,14 @@ class Reports extends Page implements HasSchemas
 
     public function getSubheading(): ?string
     {
-        return 'Зведена аналітика по менеджерах та детальний звіт по окремому менеджеру';
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        if ($user instanceof User && $user->isManager()) {
+            return 'Ваші результати роботи за обраний період.';
+        }
+
+          return 'Порівняння результатів менеджерів за обраний період.';
     }
 
     public function form(Schema $schema): Schema

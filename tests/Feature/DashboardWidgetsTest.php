@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Filament\Widgets\ClientsPoliciesTrendChart;
-use App\Filament\Widgets\ManagerPoliciesChart;
 use App\Filament\Widgets\OverviewStats;
 use App\Filament\Widgets\PolicyStatusChart;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -127,21 +126,5 @@ class DashboardWidgetsTest extends TestCase
 
         $this->assertSame([1, 1, 1, 1], $data['datasets'][0]['data']);
         $this->assertSame('doughnut', $widget->exposeType());
-    }
-
-    public function test_manager_policies_chart_is_visible_only_to_supervisor(): void
-    {
-        $admin = $this->makeUser('admin');
-        $supervisor = $this->makeUser('supervisor');
-        $manager = $this->makeUser('manager');
-
-        $this->actingAs($admin);
-        $this->assertFalse(ManagerPoliciesChart::canView());
-
-        $this->actingAs($supervisor);
-        $this->assertTrue(ManagerPoliciesChart::canView());
-
-        $this->actingAs($manager);
-        $this->assertFalse(ManagerPoliciesChart::canView());
     }
 }

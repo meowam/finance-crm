@@ -15,6 +15,17 @@ class OverviewStats extends BaseWidget
 {
     protected ?string $heading = 'Ключові показники';
 
+    protected int|string|array $columnSpan = 'full';
+
+    protected function getColumns(): int|array
+    {
+        return [
+            'default' => 1,
+            'md' => 2,
+            '2xl' => 4,
+        ];
+    }
+
     public static function canView(): bool
     {
         /** @var User|null $user */
@@ -51,21 +62,22 @@ class OverviewStats extends BaseWidget
 
         return [
             Stat::make('Мої клієнти', (string) $clientsCount)
-                ->description('Усі закріплені за вами')
+                ->description('Закріплені клієнти')
                 ->icon('heroicon-o-users'),
 
             Stat::make('Мої поліси', (string) $policiesCount)
-                ->description('Усі ваші поліси')
+                ->description('Оформлені поліси')
                 ->icon('heroicon-o-document-text'),
 
-            Stat::make('Мої страхові випадки', (string) $claimsCount)
-                ->description('Усі кейси по ваших полісах')
-                ->icon('heroicon-o-shield-exclamation'),
+            Stat::make('Страхові випадки', (string) $claimsCount)
+                ->description('По моїх полісах')
+                ->icon('heroicon-o-shield-exclamation')
+                ->color('info'),
 
             Stat::make('Прострочені оплати', (string) $overduePaymentsCount)
                 ->description('Потребують уваги')
                 ->icon('heroicon-o-exclamation-triangle')
-                ->color('danger'),
+                ->color($overduePaymentsCount > 0 ? 'danger' : 'gray'),
         ];
     }
 }

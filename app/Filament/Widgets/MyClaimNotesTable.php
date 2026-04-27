@@ -14,6 +14,8 @@ class MyClaimNotesTable extends BaseWidget
 {
     protected static ?string $heading = 'Останні нотатки по моїх страхових випадках';
 
+    protected static ?int $sort = 999;
+
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
@@ -37,8 +39,9 @@ class MyClaimNotesTable extends BaseWidget
                         $query->where('agent_id', $user?->id);
                     })
                     ->latest()
+                    ->limit(25)
             )
-            ->defaultPaginationPageOption(10)
+            ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Дата')

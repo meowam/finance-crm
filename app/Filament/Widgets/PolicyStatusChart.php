@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Widgets;
 
 use App\Models\Policy;
@@ -10,17 +11,21 @@ class PolicyStatusChart extends ChartWidget
 {
     protected ?string $heading = 'Статуси полісів';
 
+    protected static ?int $sort = 21;
+
+    protected ?string $maxHeight = '320px';
+
     protected int|string|array $columnSpan = [
-        'default' => 12,
-        'lg'      => 4,
+        'default' => 'full',
+        'xl' => 1,
     ];
 
     public static function canView(): bool
     {
-        /** @var \App\Models\User|null $user */
-        $user = \Illuminate\Support\Facades\Auth::user();
+        /** @var User|null $user */
+        $user = Auth::user();
 
-        return $user instanceof \App\Models\User  && $user->isManager();
+        return $user instanceof User && $user->isManager();
     }
 
     protected function getData(): array
@@ -34,23 +39,71 @@ class PolicyStatusChart extends ChartWidget
             $baseQuery->where('agent_id', $user->id);
         }
 
+        $draftCount = (clone $baseQuery)->where('status', 'draft')->count();
+        $activeCount = (clone $baseQuery)->where('status', 'active')->count();
+        $completedCount = (clone $baseQuery)->where('status', 'completed')->count();
+        $canceledCount = (clone $baseQuery)->where('status', 'canceled')->count();
+
         return [
             'datasets' => [
                 [
                     'label' => 'Поліси',
-                    'data'  => [
-                        (clone $baseQuery)->where('status', 'draft')->count(),
-                        (clone $baseQuery)->where('status', 'active')->count(),
-                        (clone $baseQuery)->where('status', 'completed')->count(),
-                        (clone $baseQuery)->where('status', 'canceled')->count(),
+                    'data' => [
+                        $draftCount,
+                        $activeCount,
+                        $completedCount,
+                        $canceledCount,
                     ],
+                    'backgroundColor' => [
+                        '#f59e0b',
+                        '#22c55e',
+                        '#3b82f6',
+                        '#ef4444',
+                    ],
+                    'borderColor' => [
+                        '#f59e0b',
+                        '#22c55e',
+                        '#3b82f6',
+                        '#ef4444',
+                    ],
+                    'borderWidth' => 2,
+                    'hoverOffset' => 6,
                 ],
             ],
-            'labels'   => [
+            'labels' => [
                 'Чернетка',
                 'Активний',
                 'Завершено',
                 'Скасовано',
+            ],
+        ];
+    }
+
+    protected function getOptions(): array
+    {
+        return [
+            'maintainAspectRatio' => false,
+            'cutout' => '58%',
+            'layout' => [
+                'padding' => [
+                    'top' => 8,
+                    'right' => 8,
+                    'bottom' => 0,
+                    'left' => 8,
+                ],
+            ],
+            'plugins' => [
+                'legend' => [
+                    'display' => true,
+                    'position' => 'bottom',
+                    'align' => 'center',
+                    'labels' => [
+                        'usePointStyle' => true,
+                        'pointStyle' => 'circle',
+                        'boxWidth' => 10,
+                        'padding' => 16,
+                    ],
+                ],
             ],
         ];
     }

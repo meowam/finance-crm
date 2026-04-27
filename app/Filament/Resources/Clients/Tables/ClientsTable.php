@@ -48,9 +48,9 @@ class ClientsTable
                 TextColumn::make('pib')
                     ->label('Клієнт / контакт')
                     ->state(function ($record) {
-                        $last  = trim((string) $record->last_name);
+                        $last = trim((string) $record->last_name);
                         $first = trim((string) $record->first_name);
-                        $mid   = trim((string) ($record->middle_name ?? ''));
+                        $mid = trim((string) ($record->middle_name ?? ''));
 
                         $fullName = trim(implode(' ', array_filter([$last, $first, $mid])));
 
@@ -82,15 +82,15 @@ class ClientsTable
                 TextColumn::make('type')
                     ->label('Тип')
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'company'    => 'Компанія',
+                        'company' => 'Компанія',
                         'individual' => 'Фізична особа',
-                        default      => '—',
+                        default => '—',
                     })
                     ->badge()
                     ->color(fn ($state) => match ($state) {
-                        'company'    => 'info',
+                        'company' => 'info',
                         'individual' => 'gray',
-                        default      => 'gray',
+                        default => 'gray',
                     })
                     ->toggleable(isToggledHiddenByDefault: true)
                     ->sortable()
@@ -99,17 +99,17 @@ class ClientsTable
                 TextColumn::make('status')
                     ->label('Статус')
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'active'   => 'Активний',
+                        'active' => 'Активний',
                         'archived' => 'Архівовано',
-                        'lead'     => 'Потенційний',
-                        default    => '—',
+                        'lead' => 'Потенційний',
+                        default => '—',
                     })
                     ->badge()
                     ->color(fn ($state) => match ($state) {
-                        'active'   => 'success',
-                        'lead'     => 'warning',
+                        'active' => 'success',
+                        'lead' => 'warning',
                         'archived' => 'gray',
-                        default    => 'gray',
+                        default => 'gray',
                     })
                     ->sortable()
                     ->searchable(),
@@ -142,22 +142,22 @@ class ClientsTable
                 TextColumn::make('source')
                     ->label('Джерело')
                     ->formatStateUsing(fn ($state) => match ($state) {
-                        'office'         => 'Офіс',
-                        'online'         => 'Онлайн',
+                        'office' => 'Офіс',
+                        'online' => 'Онлайн',
                         'recommendation' => 'Рекомендація',
-                        'landing'        => 'Лендінг',
-                        'other'          => 'Інше',
-                        null, ''         => '—',
-                        default          => (string) $state,
+                        'landing' => 'Лендінг',
+                        'other' => 'Інше',
+                        null, '' => '—',
+                        default => (string) $state,
                     })
                     ->badge()
                     ->color(fn ($state) => match ($state) {
-                        'office'         => 'info',
-                        'online'         => 'success',
+                        'office' => 'info',
+                        'online' => 'success',
                         'recommendation' => 'warning',
-                        'landing'        => 'primary',
-                        'other'          => 'gray',
-                        default          => 'gray',
+                        'landing' => 'primary',
+                        'other' => 'gray',
+                        default => 'gray',
                     })
                     ->sortable()
                     ->searchable(),
@@ -184,19 +184,19 @@ class ClientsTable
                 SelectFilter::make('status')
                     ->label('Статус')
                     ->options([
-                        'lead'     => 'Потенційний',
-                        'active'   => 'Активний',
+                        'lead' => 'Потенційний',
+                        'active' => 'Активний',
                         'archived' => 'Архівовано',
                     ]),
 
                 SelectFilter::make('source')
                     ->label('Джерело')
                     ->options([
-                        'office'         => 'Офіс',
-                        'online'         => 'Онлайн',
+                        'office' => 'Офіс',
+                        'online' => 'Онлайн',
                         'recommendation' => 'Рекомендація',
-                        'landing'        => 'Лендінг',
-                        'other'          => 'Інше',
+                        'landing' => 'Лендінг',
+                        'other' => 'Інше',
                     ]),
 
                 SelectFilter::make('assigned_user_id')
@@ -247,8 +247,12 @@ class ClientsTable
                 Action::make('policies')
                     ->label('Усі поліси клієнта')
                     ->icon('heroicon-o-document-text')
-                    ->url(fn ($record): string => PolicyResource::getUrl('index', [
-                        'tableSearch' => (string) $record->primary_email,
+                    ->url(fn (Client $record): string => PolicyResource::getUrl('index', [
+                        'tableFilters' => [
+                            'client_id' => [
+                                'value' => $record->id,
+                            ],
+                        ],
                     ]))
                     ->openUrlInNewTab(),
             ])
@@ -261,7 +265,7 @@ class ClientsTable
                         /** @var User|null $user */
                         $user = Auth::user();
 
-                        return $user instanceof User && $user->can('deleteAny', \App\Models\Client::class);
+                        return $user instanceof User && $user->can('deleteAny', Client::class);
                     })
                     ->modalDescription('Клієнти без історії будуть видалені назавжди. Клієнти з історією будуть архівовані через soft delete.')
                     ->action(function (Collection $records): void {

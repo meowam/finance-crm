@@ -13,6 +13,8 @@ class MyNewLeadsTable extends BaseWidget
 {
     protected static ?string $heading = 'Мої нові вхідні заявки';
 
+    protected static ?int $sort = 40;
+
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
@@ -35,7 +37,7 @@ class MyNewLeadsTable extends BaseWidget
                     ->whereIn('status', ['new', 'in_progress'])
                     ->latest()
             )
-            ->defaultPaginationPageOption(10)
+            ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Створено')
@@ -44,12 +46,10 @@ class MyNewLeadsTable extends BaseWidget
 
                 Tables\Columns\TextColumn::make('display_label')
                     ->label('Лід')
-                    ->state(fn (LeadRequest $record) => $record->display_label)
-                    ->searchable(),
+                    ->state(fn (LeadRequest $record) => $record->display_label),
 
                 Tables\Columns\TextColumn::make('phone')
-                    ->label('Телефон')
-                    ->searchable(),
+                    ->label('Телефон'),
 
                 Tables\Columns\TextColumn::make('interest')
                     ->label('Інтерес')

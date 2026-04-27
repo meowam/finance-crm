@@ -216,6 +216,19 @@ class PoliciesTable
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
+                SelectFilter::make('client_id')
+                    ->label('Клієнт')
+                    ->query(function (EloquentBuilder $query, array $data): EloquentBuilder {
+                        $value = $data['value'] ?? null;
+
+                        if (blank($value)) {
+                            return $query;
+                        }
+
+                        return $query->where('client_id', $value);
+                    })
+                    ->hidden(),
+
                 SelectFilter::make('status')
                     ->label('Статус')
                     ->options([
