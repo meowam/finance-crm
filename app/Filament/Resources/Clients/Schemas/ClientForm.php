@@ -39,11 +39,9 @@ class ClientForm
     protected static function sourceOptions(): array
     {
         return [
-            'office' => 'Офіс',
             'landing' => 'Лендінг',
             'manual' => 'Створено вручну',
             'recommendation' => 'Рекомендація',
-            'other' => 'Інше',
         ];
     }
 
@@ -70,8 +68,8 @@ class ClientForm
 
                 Hidden::make('status')
                     ->default('lead')
-                    ->dehydrated(true)
-                    ->hiddenOn(CreateRecord::class),
+                    ->visibleOn(CreateRecord::class)
+                    ->dehydrated(true),
 
                 Select::make('status')
                     ->label('Статус')
@@ -84,7 +82,6 @@ class ClientForm
                     ->native(false)
                     ->rules([Rule::in(['lead', 'active', 'archived'])])
                     ->hiddenOn(CreateRecord::class)
-                    ->default('active')
                     ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Поле «Статус» є обовʼязковим.',
@@ -280,7 +277,7 @@ class ClientForm
                         'required',
                         Rule::in(array_keys(static::sourceOptions())),
                     ])
-                    ->default('office')
+                    ->default('manual')
                     ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Оберіть канал звернення.',

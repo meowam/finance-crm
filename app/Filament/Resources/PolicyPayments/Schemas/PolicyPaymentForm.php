@@ -54,6 +54,20 @@ class PolicyPaymentForm
         return number_format(0, 2, '.', '');
     }
 
+    protected static function normalizedStatus($record): string
+    {
+        if (! $record) {
+            return '';
+        }
+
+        return mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status));
+    }
+
+    protected static function isLockedStatus($record): bool
+    {
+        return $record && in_array(static::normalizedStatus($record), ['paid', 'overdue', 'refunded'], true);
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -112,11 +126,7 @@ class PolicyPaymentForm
                         $set('due_date', self::resolveDueDate($policy));
                         $set('amount', self::resolveAmount($policy));
                     })
-                    ->disabled(fn ($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue', 'refunded'],
-                        true
-                    ))
+                    ->disabled(fn ($record) => static::isLockedStatus($record))
                     ->visibleOn(CreateRecord::class)
                     ->columnSpan(1),
 
@@ -204,11 +214,7 @@ class PolicyPaymentForm
                         ? number_format((float) $state, 2, '.', '')
                         : number_format(0, 2, '.', '')
                     )
-                    ->disabled(fn ($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue', 'refunded'],
-                        true
-                    ))
+                    ->disabled(fn ($record) => static::isLockedStatus($record))
                     ->columnSpan(1),
 
                 Select::make('method')
@@ -229,29 +235,32 @@ class PolicyPaymentForm
                             $set('status', 'paid');
                             $set('initiated_at', null);
                             $set('paid_at', now());
+
                             return;
                         }
 
                         if ($state === 'transfer') {
-                            if (! in_array($get('status'), ['scheduled', 'paid', 'canceled', 'refunded'], true)) {
+                            if (! in_array($get('status'), ['scheduled', 'paid', 'overdue', 'canceled', 'refunded'], true)) {
                                 $set('status', 'scheduled');
                             }
+
                             $set('initiated_at', $get('initiated_at') ?: now());
+
                             if ($get('status') !== 'paid') {
                                 $set('paid_at', null);
                             }
+
                             return;
                         }
 
-                        $set('status', 'draft');
+                        if (! in_array($get('status'), ['draft', 'overdue', 'canceled'], true)) {
+                            $set('status', 'draft');
+                        }
+
                         $set('initiated_at', null);
                         $set('paid_at', null);
                     })
-                    ->disabled(fn ($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue', 'refunded'],
-                        true
-                    ))
+                    ->disabled(fn ($record) => static::isLockedStatus($record))
                     ->columnSpan(1),
 
                 Select::make('status')
@@ -260,6 +269,7 @@ class PolicyPaymentForm
                         'transfer' => [
                             'scheduled' => 'заплановано',
                             'paid' => 'сплачено',
+                            'overdue' => 'прострочено',
                             'canceled' => 'скасовано',
                             'refunded' => 'повернено',
                         ],
@@ -270,6 +280,7 @@ class PolicyPaymentForm
                         ],
                         'no_method' => [
                             'draft' => 'чернетка',
+                            'overdue' => 'прострочено',
                             'canceled' => 'скасовано',
                         ],
                         default => ['draft' => 'чернетка'],
@@ -290,6 +301,7 @@ class PolicyPaymentForm
                         if (in_array($method, ['cash', 'card'], true)) {
                             $set('paid_at', $state === 'paid' ? ($get('paid_at') ?: now()) : $get('paid_at'));
                             $set('initiated_at', null);
+
                             return;
                         }
 
@@ -300,19 +312,16 @@ class PolicyPaymentForm
                             } elseif ($state === 'paid') {
                                 $set('paid_at', $get('paid_at') ?: now());
                             }
+
                             return;
                         }
 
-                        if ($method === 'no_method' && $state === 'draft') {
+                        if ($method === 'no_method' && in_array($state, ['draft', 'overdue', 'canceled'], true)) {
                             $set('initiated_at', null);
                             $set('paid_at', null);
                         }
                     })
-                    ->disabled(fn ($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue', 'refunded'],
-                        true
-                    ))
+                    ->disabled(fn ($record) => static::isLockedStatus($record))
                     ->columnSpan(1),
 
                 Hidden::make('paid_at')
@@ -331,11 +340,7 @@ class PolicyPaymentForm
                     ->label('Нотатки')
                     ->rows(3)
                     ->dehydrateStateUsing(fn ($s) => filled($s) ? $s : null)
-                    ->disabled(fn ($record) => $record && in_array(
-                        mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status)),
-                        ['paid', 'overdue', 'refunded'],
-                        true
-                    ))
+                    ->disabled(fn ($record) => static::isLockedStatus($record))
                     ->columnSpanFull(),
             ]);
     }

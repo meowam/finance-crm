@@ -72,13 +72,7 @@ class LeadRequestsTable
 
                 TextColumn::make('source')
                     ->label('Джерело')
-                    ->formatStateUsing(fn ($state) => match ($state) {
-                        'landing' => 'Лендінг',
-                        'manual' => 'Створено вручну',
-                        'online' => 'Створено вручну',
-                        'recommendation' => 'Рекомендація',
-                        default => (string) $state,
-                    })
+                    ->formatStateUsing(fn ($state) => static::sourceOptions()[$state] ?? '—')
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('status')

@@ -20,6 +20,15 @@ use Illuminate\Support\Facades\Auth;
 
 class ClientsTable
 {
+    protected static function sourceOptions(): array
+    {
+        return [
+            'landing' => 'Лендінг',
+            'manual' => 'Створено вручну',
+            'recommendation' => 'Рекомендація',
+        ];
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -141,22 +150,12 @@ class ClientsTable
 
                 TextColumn::make('source')
                     ->label('Джерело')
-                    ->formatStateUsing(fn ($state) => match ($state) {
-                        'office' => 'Офіс',
-                        'online' => 'Онлайн',
-                        'recommendation' => 'Рекомендація',
-                        'landing' => 'Лендінг',
-                        'other' => 'Інше',
-                        null, '' => '—',
-                        default => (string) $state,
-                    })
+                    ->formatStateUsing(fn ($state) => static::sourceOptions()[$state] ?? '—')
                     ->badge()
                     ->color(fn ($state) => match ($state) {
-                        'office' => 'info',
-                        'online' => 'success',
-                        'recommendation' => 'warning',
                         'landing' => 'primary',
-                        'other' => 'gray',
+                        'manual' => 'gray',
+                        'recommendation' => 'warning',
                         default => 'gray',
                     })
                     ->sortable()
@@ -191,13 +190,7 @@ class ClientsTable
 
                 SelectFilter::make('source')
                     ->label('Джерело')
-                    ->options([
-                        'office' => 'Офіс',
-                        'online' => 'Онлайн',
-                        'recommendation' => 'Рекомендація',
-                        'landing' => 'Лендінг',
-                        'other' => 'Інше',
-                    ]),
+                    ->options(static::sourceOptions()),
 
                 SelectFilter::make('assigned_user_id')
                     ->label('Менеджер')
