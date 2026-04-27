@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Claims\Pages;
 
+use App\Enums\ClaimStatus;
+use App\Enums\PolicyStatus;
 use App\Filament\Resources\Claims\ClaimResource;
 use App\Models\Claim;
 use App\Models\Policy;
@@ -85,7 +87,7 @@ class CreateClaim extends CreateRecord
         $amountClaimed = $this->normalizeMoneyValue($data['amount_claimed'] ?? 0);
         $amountReserve = $this->normalizeMoneyValue($data['amount_reserve'] ?? 0);
         $amountPaid = $this->normalizeMoneyValue($data['amount_paid'] ?? 0);
-        $status = (string) ($data['status'] ?? '');
+        $status = ClaimStatus::normalize($data['status'] ?? '');
 
         $coverageAmount = $policy?->coverage_amount !== null
             ? (float) $policy->coverage_amount
@@ -117,11 +119,11 @@ class CreateClaim extends CreateRecord
             $errors['amount_paid'] = 'Виплачена сума не може перевищувати резервну суму.';
         }
 
-        if ($status === 'виплачено' && $amountPaid <= 0) {
+        if ($status === ClaimStatus::Paid->value && $amountPaid <= 0) {
             $errors['amount_paid'] = 'Для статусу «Виплачено» потрібно вказати суму виплати.';
         }
 
-        if ($status === 'відхилено' && $amountPaid > 0) {
+        if ($status === ClaimStatus::Rejected->value && $amountPaid > 0) {
             $errors['amount_paid'] = 'Для відхиленої заяви виплачена сума повинна дорівнювати 0.';
         }
 
@@ -142,13 +144,13 @@ class CreateClaim extends CreateRecord
             abort(403);
         }
 
-        $status = $policy->status instanceof \BackedEnum
+        $status = $policy->status instanceof PolicyStatus
             ? $policy->status->value
             : (string) $policy->status;
 
-        if ($status !== 'active') {
+        if (! in_array($status, [PolicyStatus::Active->value, PolicyStatus::Completed->value], true)) {
             throw ValidationException::withMessages([
-                'policy_id' => 'Страховий випадок можна створити лише для активного поліса.',
+                'policy_id' => 'Страховий випадок можна створити лише для активного або завершеного поліса.',
             ]);
         }
 

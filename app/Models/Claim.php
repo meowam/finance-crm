@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ClaimStatus;
 use App\Models\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -29,6 +30,7 @@ class Claim extends Model
     ];
 
     protected $casts = [
+        'status' => ClaimStatus::class,
         'reported_at' => 'datetime',
         'loss_occurred_at' => 'date',
         'amount_claimed' => 'decimal:2',

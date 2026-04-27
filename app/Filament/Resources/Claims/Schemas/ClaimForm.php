@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Claims\Schemas;
 
+use App\Enums\ClaimStatus;
+use App\Enums\PolicyStatus;
 use App\Models\Policy;
 use App\Models\User;
 use Filament\Forms\Components\DatePicker;
@@ -13,6 +15,7 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
@@ -46,12 +49,16 @@ class ClaimForm
                     ->relationship(
                         name: 'policy',
                         titleAttribute: 'policy_number',
-                        modifyQueryUsing: function ($query) {
+                        modifyQueryUsing: function (Builder $query) {
                             /** @var User|null $user */
                             $user = Auth::user();
 
-                            $query->visibleTo($user)
-                                ->where('status', 'active');
+                            $query
+                                ->visibleTo($user)
+                                ->whereIn('status', [
+                                    PolicyStatus::Active->value,
+                                    PolicyStatus::Completed->value,
+                                ]);
                         }
                     )
                     ->searchable()
@@ -61,7 +68,7 @@ class ClaimForm
                     ->columnSpan(2)
                     ->validationMessages([
                         'required' => 'Оберіть номер поліса.',
-                        'exists'   => 'Обраний поліс не знайдено.',
+                        'exists' => 'Обраний поліс не знайдено.',
                     ]),
 
                 TextInput::make('reported_by_name')
@@ -72,6 +79,7 @@ class ClaimForm
                         $name = $record
                             ? optional($record->reportedBy)->name
                             : optional(Auth::user())->name;
+
                         $component->state($name);
                     })
                     ->default(fn () => optional(Auth::user())->name)
@@ -84,67 +92,60 @@ class ClaimForm
 
                 Select::make('status')
                     ->label('Статус')
-                    ->options([
-                        'на розгляді' => 'На розгляді',
-                        'схвалено'    => 'Схвалено',
-                        'виплачено'   => 'Виплачено',
-                        'відхилено'   => 'Відхилено',
-                    ])
+                    ->options(ClaimStatus::options())
                     ->native(false)
                     ->required()
-                    ->rules([Rule::in(['на розгляді', 'схвалено', 'виплачено', 'відхилено'])])
-                    ->default('на розгляді')
+                    ->rules([Rule::in(ClaimStatus::values())])
+                    ->default(ClaimStatus::Reviewing->value)
                     ->columnSpan(1)
                     ->validationMessages([
                         'required' => 'Оберіть статус.',
-                        'in'       => 'Недопустиме значення статусу.',
+                        'in' => 'Недопустиме значення статусу.',
                     ]),
 
                 DatePicker::make('loss_occurred_at')
-    ->label('Дата страхового випадку')
-    ->placeholder('дд.мм.рррр')
-    ->native(false)
-    ->displayFormat('d.m.Y')
-    ->format('Y-m-d')
-    ->timezone(null)
-    ->closeOnDateSelection()
-    ->required()
-    ->minDate(fn () => now()->subYears(5)->startOfDay())
-    ->maxDate(fn () => now()->endOfDay())
-    ->rules(function (callable $get) {
-        $rules = [
-            'required',
-        ];
+                    ->label('Дата страхового випадку')
+                    ->placeholder('дд.мм.рррр')
+                    ->native(false)
+                    ->displayFormat('d.m.Y')
+                    ->format('Y-m-d')
+                    ->timezone(null)
+                    ->closeOnDateSelection()
+                    ->required()
+                    ->minDate(fn () => now()->subYears(5)->startOfDay())
+                    ->maxDate(fn () => now()->endOfDay())
+                    ->rules(function (callable $get) {
+                        $rules = ['required'];
 
-        $policyId = $get('policy_id');
+                        $policyId = $get('policy_id');
 
-        if (! $policyId) {
-            $max = now()->toDateString();
-            $min = now()->subYears(5)->toDateString();
+                        if (! $policyId) {
+                            $max = now()->toDateString();
+                            $min = now()->subYears(5)->toDateString();
 
-            $rules[] = "before_or_equal:$max";
-            $rules[] = "after_or_equal:$min";
+                            $rules[] = "before_or_equal:$max";
+                            $rules[] = "after_or_equal:$min";
 
-            return $rules;
-        }
+                            return $rules;
+                        }
 
-        $policy = \App\Models\Policy::query()->find($policyId);
+                        $policy = Policy::query()->find($policyId);
 
-        if (! $policy || ! $policy->effective_date || ! $policy->expiration_date) {
-            return $rules;
-        }
+                        if (! $policy || ! $policy->effective_date || ! $policy->expiration_date) {
+                            return $rules;
+                        }
 
-        $rules[] = 'after_or_equal:' . $policy->effective_date->toDateString();
-        $rules[] = 'before_or_equal:' . $policy->expiration_date->toDateString();
+                        $rules[] = 'after_or_equal:' . $policy->effective_date->toDateString();
+                        $rules[] = 'before_or_equal:' . $policy->expiration_date->toDateString();
 
-        return $rules;
-    })
-    ->validationMessages([
-        'required'        => 'Вкажіть дату страхового випадку.',
-        'before_or_equal' => 'Дата страхового випадку не може бути пізніше завершення дії поліса.',
-        'after_or_equal'  => 'Дата страхового випадку не може бути раніше початку дії поліса.',
-    ])
-    ->columnSpan(1),
+                        return $rules;
+                    })
+                    ->validationMessages([
+                        'required' => 'Вкажіть дату страхового випадку.',
+                        'before_or_equal' => 'Дата страхового випадку не може бути пізніше завершення дії поліса.',
+                        'after_or_equal' => 'Дата страхового випадку не може бути раніше початку дії поліса.',
+                    ])
+                    ->columnSpan(1),
 
                 TextInput::make('loss_location')
                     ->label('Місце події')
@@ -155,7 +156,7 @@ class ClaimForm
                     ->columnSpan(1)
                     ->validationMessages([
                         'required' => 'Вкажіть місце події.',
-                        'max'      => 'Місце події повинно містити не більше 255 символів.',
+                        'max' => 'Місце події повинно містити не більше 255 символів.',
                     ]),
 
                 TextInput::make('cause')
@@ -167,7 +168,7 @@ class ClaimForm
                     ->columnSpan(2)
                     ->validationMessages([
                         'required' => 'Вкажіть причину.',
-                        'max'      => 'Причина повинна містити не більше 255 символів.',
+                        'max' => 'Причина повинна містити не більше 255 символів.',
                     ]),
 
                 Textarea::make('description')
@@ -187,12 +188,13 @@ class ClaimForm
                     ->required()
                     ->extraAttributes([
                         'inputmode' => 'decimal',
-                        'pattern'   => '[0-9]+([.,][0-9]{0,2})?',
+                        'pattern' => '[0-9]+([.,][0-9]{0,2})?',
                     ])
                     ->live(onBlur: true)
                     ->afterStateUpdated(function ($state, callable $set) {
                         $clean = preg_replace('/[^0-9,.]/', '', (string) $state);
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
+
                         $set('amount_claimed', $clean);
                     })
                     ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
@@ -200,7 +202,7 @@ class ClaimForm
                     ->columnSpan(1)
                     ->validationMessages([
                         'required' => 'Вкажіть заявлену суму.',
-                        'regex'    => 'Допустимі лише цифри, кома або крапка (до 2 знаків після).',
+                        'regex' => 'Допустимі лише цифри, кома або крапка (до 2 знаків після).',
                     ]),
 
                 TextInput::make('amount_reserve')
@@ -210,12 +212,13 @@ class ClaimForm
                     ->suffix('₴')
                     ->extraAttributes([
                         'inputmode' => 'decimal',
-                        'pattern'   => '[0-9]+([.,][0-9]{0,2})?',
+                        'pattern' => '[0-9]+([.,][0-9]{0,2})?',
                     ])
                     ->live(onBlur: true)
                     ->afterStateUpdated(function ($state, callable $set) {
                         $clean = preg_replace('/[^0-9,.]/', '', (string) $state);
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
+
                         $set('amount_reserve', $clean);
                     })
                     ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
@@ -231,12 +234,13 @@ class ClaimForm
                     ->suffix('₴')
                     ->extraAttributes([
                         'inputmode' => 'decimal',
-                        'pattern'   => '[0-9]+([.,][0-9]{0,2})?',
+                        'pattern' => '[0-9]+([.,][0-9]{0,2})?',
                     ])
                     ->live(onBlur: true)
                     ->afterStateUpdated(function ($state, callable $set) {
                         $clean = preg_replace('/[^0-9,.]/', '', (string) $state);
                         $clean = preg_replace('/([.,].*?)[.,]+/', '$1', $clean);
+
                         $set('amount_paid', $clean);
                     })
                     ->rules(['regex:/^\d+(?:[.,]\d{0,2})?$/'])
@@ -258,14 +262,14 @@ class ClaimForm
                             ->label('Видимість')
                             ->options([
                                 'внутрішня' => 'Внутрішня',
-                                'зовнішня'  => 'Зовнішня',
+                                'зовнішня' => 'Зовнішня',
                             ])
                             ->native(false)
                             ->required()
                             ->rules([Rule::in(['внутрішня', 'зовнішня'])])
                             ->validationMessages([
                                 'required' => 'Оберіть видимість нотатки.',
-                                'in'       => 'Недопустиме значення видимості.',
+                                'in' => 'Недопустиме значення видимості.',
                             ]),
 
                         TextInput::make('user_name')

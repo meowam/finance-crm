@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Claims\Tables;
 
+use App\Enums\ClaimStatus;
 use App\Filament\Resources\Policies\PolicyResource;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Claim;
@@ -15,6 +16,29 @@ use Illuminate\Support\Facades\Auth;
 
 class ClaimsTable
 {
+    protected static function statusSortSql(): string
+    {
+        $cases = collect(ClaimStatus::orderedValues())
+            ->map(function (string $value, int $index): string {
+                $safeValue = str_replace("'", "''", $value);
+                $position = $index + 1;
+
+                return "WHEN '{$safeValue}' THEN {$position}";
+            })
+            ->implode(' ');
+
+        return "CASE status {$cases} ELSE 5 END";
+    }
+
+    protected static function resolveStatus(?string $state): ?ClaimStatus
+    {
+        if (! $state) {
+            return null;
+        }
+
+        return ClaimStatus::tryFrom($state);
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -36,15 +60,20 @@ class ClaimsTable
                 TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
-                    ->color(fn (string $state) => match ($state) {
-                        'на розгляді' => 'warning',
-                        'виплачено'   => 'success',
-                        'схвалено'    => 'info',
-                        'відхилено'   => 'danger',
-                        default       => 'gray',
+                    ->formatStateUsing(function (ClaimStatus|string|null $state): string {
+                        $value = ClaimStatus::normalize($state);
+                        $status = ClaimStatus::tryFrom($value);
+
+                        return $status?->label() ?? $value;
+                    })
+                    ->color(function (ClaimStatus|string|null $state): string {
+                        $value = ClaimStatus::normalize($state);
+
+                        return ClaimStatus::tryFrom($value)?->color() ?? 'gray';
                     })
                     ->sortable(query: fn (Builder $query, string $direction) =>
-                        $query->orderByRaw("CASE status WHEN 'на розгляді' THEN 1 WHEN 'схвалено' THEN 2 WHEN 'відхилено' THEN 3 WHEN 'виплачено' THEN 4 ELSE 5 END $direction"))
+                        $query->orderByRaw(self::statusSortSql() . " {$direction}")
+                    )
                     ->searchable(),
 
                 TextColumn::make('claim_number')
