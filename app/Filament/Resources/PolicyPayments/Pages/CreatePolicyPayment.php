@@ -4,10 +4,12 @@ namespace App\Filament\Resources\PolicyPayments\Pages;
 
 use App\Filament\Resources\PolicyPayments\PolicyPaymentResource;
 use App\Models\Policy;
+use App\Models\PolicyPayment;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreatePolicyPayment extends CreateRecord
 {
@@ -51,12 +53,32 @@ class CreatePolicyPayment extends CreateRecord
 
         abort_unless($user instanceof User, 403);
 
-        if (! empty($data['policy_id'])) {
-            $policy = Policy::query()->find($data['policy_id']);
+        if (empty($data['policy_id'])) {
+            throw ValidationException::withMessages([
+                'policy_id' => 'Оберіть поліс.',
+            ]);
+        }
 
-            if (! $policy || ! $policy->isVisibleTo($user)) {
-                abort(403);
-            }
+        $policy = Policy::query()->find($data['policy_id']);
+
+        if (! $policy || ! $policy->isVisibleTo($user)) {
+            abort(403);
+        }
+
+        $policyStatus = $policy->status instanceof \BackedEnum
+            ? $policy->status->value
+            : (string) $policy->status;
+
+        if ($policyStatus !== 'draft') {
+            throw ValidationException::withMessages([
+                'policy_id' => 'Оплату можна створити лише для поліса у статусі чернетки.',
+            ]);
+        }
+
+        if ($policy->payments()->whereIn('status', PolicyPayment::ACTIVE_STATUSES)->exists()) {
+            throw ValidationException::withMessages([
+                'policy_id' => 'Для цього поліса вже існує активний платіж зі статусом «сплачено» або «заплановано».',
+            ]);
         }
 
         return $data;

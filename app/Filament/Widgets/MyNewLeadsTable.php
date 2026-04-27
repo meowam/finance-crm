@@ -45,7 +45,7 @@ class MyNewLeadsTable extends BaseWidget
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('display_label')
-                    ->label('Лід')
+                    ->label('Вхідна заявка')
                     ->state(fn (LeadRequest $record) => $record->display_label),
 
                 Tables\Columns\TextColumn::make('phone')

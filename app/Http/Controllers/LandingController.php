@@ -42,7 +42,10 @@ class LandingController extends Controller
                 'string',
                 'max:200',
             ],
-            'phone' => ['required', 'regex:/^\+[0-9\s\-\(\)]{8,20}$/'],
+            'phone' => [
+                'required',
+                'regex:/^\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\d{7}$/',
+            ],
             'email' => ['nullable', 'email', 'max:150'],
             'interest' => ['required', Rule::in(array_keys($interestOptions))],
             'comment' => ['nullable', 'string', 'max:1000'],
@@ -62,7 +65,7 @@ class LandingController extends Controller
             'company_name.max' => 'Назва компанії не повинна перевищувати 200 символів.',
 
             'phone.required' => 'Вкажіть номер телефону.',
-            'phone.regex' => 'Вкажіть коректний номер телефону у міжнародному форматі.',
+            'phone.regex' => 'Вкажіть коректний номер телефону у форматі +380XXXXXXXXX.',
 
             'email.email' => 'Вкажіть коректний email.',
             'email.max' => 'Email не повинен перевищувати 150 символів.',

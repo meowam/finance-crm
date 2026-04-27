@@ -250,6 +250,10 @@ class Policy extends Model
             ->where('status', PaymentStatus::Paid->value)
             ->exists();
 
+        $hasStarted = $this->effective_date instanceof Carbon
+            ? $today->greaterThanOrEqualTo($this->effective_date->copy()->startOfDay())
+            : false;
+
         $isExpired = $this->expiration_date instanceof Carbon
             ? $today->greaterThan($this->expiration_date->copy()->startOfDay())
             : false;
@@ -260,7 +264,7 @@ class Policy extends Model
 
         $newStatus = match (true) {
             $hasPaidPayment && $isExpired => PolicyStatus::Completed,
-            $hasPaidPayment => PolicyStatus::Active,
+            $hasPaidPayment && $hasStarted => PolicyStatus::Active,
             $isPaymentOverdue => PolicyStatus::Canceled,
             default => PolicyStatus::Draft,
         };

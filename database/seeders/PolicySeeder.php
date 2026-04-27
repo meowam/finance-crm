@@ -50,14 +50,18 @@ class PolicySeeder extends Seeder
             ? $paymentStatus->value
             : (string) $paymentStatus;
 
-        return match ($status) {
-            PaymentStatus::Paid->value => $today->gte($expiration)
-                ? PolicyStatus::Completed
-                : PolicyStatus::Active,
+        $hasStarted = $today->greaterThanOrEqualTo($effective->copy()->startOfDay());
+        $isExpired = $today->greaterThan($expiration->copy()->startOfDay());
 
-            PaymentStatus::Overdue->value,
-            PaymentStatus::Canceled->value,
-            PaymentStatus::Refunded->value => PolicyStatus::Canceled,
+        return match (true) {
+            $status === PaymentStatus::Paid->value && $isExpired => PolicyStatus::Completed,
+            $status === PaymentStatus::Paid->value && $hasStarted => PolicyStatus::Active,
+
+            in_array($status, [
+                PaymentStatus::Overdue->value,
+                PaymentStatus::Canceled->value,
+                PaymentStatus::Refunded->value,
+            ], true) => PolicyStatus::Canceled,
 
             default => PolicyStatus::Draft,
         };

@@ -4,7 +4,6 @@ namespace App\Models\Concerns;
 
 use App\Models\ActivityLog;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Arr;
 
 trait LogsActivity
 {
@@ -144,7 +143,7 @@ trait LogsActivity
             }
         }
 
-        return Arr::where($data, fn ($value) => ! is_null($value));
+        return $data;
     }
 
     protected static function normalizeArrayValues(array $data): array
