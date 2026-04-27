@@ -13,12 +13,19 @@ class PolicyStatusChart extends ChartWidget
 
     protected static ?int $sort = 21;
 
-    protected ?string $maxHeight = '320px';
+    protected ?string $maxHeight = '300px';
 
     protected int|string|array $columnSpan = [
         'default' => 'full',
         'xl' => 1,
     ];
+
+    public function getExtraAttributes(): array
+    {
+        return [
+            'style' => 'min-height: 430px;',
+        ];
+    }
 
     public static function canView(): bool
     {
@@ -82,7 +89,9 @@ class PolicyStatusChart extends ChartWidget
     protected function getOptions(): array
     {
         return [
+            'responsive' => true,
             'maintainAspectRatio' => false,
+            'resizeDelay' => 150,
             'cutout' => '58%',
             'layout' => [
                 'padding' => [
@@ -101,6 +110,7 @@ class PolicyStatusChart extends ChartWidget
                         'usePointStyle' => true,
                         'pointStyle' => 'circle',
                         'boxWidth' => 10,
+                        'boxHeight' => 10,
                         'padding' => 16,
                     ],
                 ],

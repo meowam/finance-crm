@@ -14,12 +14,19 @@ class ClientsPoliciesTrendChart extends ChartWidget
 
     protected static ?int $sort = 20;
 
-    protected ?string $maxHeight = '320px';
+    protected ?string $maxHeight = '300px';
 
     protected int|string|array $columnSpan = [
         'default' => 'full',
         'xl' => 1,
     ];
+
+    public function getExtraAttributes(): array
+    {
+        return [
+            'style' => 'min-height: 430px;',
+        ];
+    }
 
     public static function canView(): bool
     {
@@ -96,7 +103,9 @@ class ClientsPoliciesTrendChart extends ChartWidget
     protected function getOptions(): array
     {
         return [
+            'responsive' => true,
             'maintainAspectRatio' => false,
+            'resizeDelay' => 150,
             'layout' => [
                 'padding' => [
                     'top' => 8,
