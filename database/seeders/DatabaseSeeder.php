@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
 
             PasswordResetRequestSeeder::class,
             ActivityLogSeeder::class,
+
+            DemoProblemRecordsSeeder::class,
         ]);
     }
 }

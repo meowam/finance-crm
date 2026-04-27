@@ -4,8 +4,10 @@ namespace App\Filament\Resources\LeadRequests\Pages;
 
 use App\Filament\Resources\LeadRequests\LeadRequestResource;
 use App\Models\User;
+use Filament\Actions;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -13,7 +15,17 @@ class EditLeadRequest extends EditRecord
 {
     protected static string $resource = LeadRequestResource::class;
 
-    protected static ?string $title = 'Редагувати вхідну заявку';
+    public function getTitle(): string
+    {
+        return $this->isProblemReassignMode()
+            ? 'Перепризначити менеджера заявки'
+            : 'Редагувати вхідну заявку';
+    }
+
+    protected function isProblemReassignMode(): bool
+    {
+        return request()->boolean('problem_reassign');
+    }
 
     protected function authorizeAccess(): void
     {
@@ -65,7 +77,40 @@ class EditLeadRequest extends EditRecord
 
         $data = $this->ensureValidAssignedManager($data, $user);
 
+        if ($this->isProblemReassignMode()) {
+            return [
+                'assigned_user_id' => $data['assigned_user_id'],
+            ];
+        }
+
         return $data;
+    }
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        if ($this->isProblemReassignMode()) {
+            $record->update([
+                'assigned_user_id' => $data['assigned_user_id'],
+            ]);
+
+            return $record->refresh();
+        }
+
+        return parent::handleRecordUpdate($record, $data);
+    }
+
+    protected function getFormActions(): array
+    {
+        return [
+            Actions\Action::make('save')
+                ->label($this->isProblemReassignMode() ? 'Перепризначити менеджера' : 'Зберегти зміни')
+                ->submit('save'),
+
+            Actions\Action::make('cancel')
+                ->label('Скасувати')
+                ->url($this->getResource()::getUrl('index'))
+                ->color('gray'),
+        ];
     }
 
     protected function getHeaderActions(): array
@@ -75,7 +120,7 @@ class EditLeadRequest extends EditRecord
 
         return [
             DeleteAction::make()
-                ->visible($user instanceof User && $user->can('delete', $this->record)),
+                ->visible(! $this->isProblemReassignMode() && $user instanceof User && $user->can('delete', $this->record)),
         ];
     }
 }

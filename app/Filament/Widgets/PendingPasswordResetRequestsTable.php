@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Filament\Widgets;
 
 use App\Models\PasswordResetRequest;
@@ -56,42 +57,42 @@ class PendingPasswordResetRequestsTable extends BaseWidget
                 Tables\Columns\TextColumn::make('user.role')
                     ->label('Роль')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match ($state) {
-                        'admin'      => 'Адмін',
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'admin' => 'Адмін',
                         'supervisor' => 'Супервайзер',
-                        'manager'    => 'Менеджер',
-                        default      => $state ?: '—',
+                        'manager' => 'Менеджер',
+                        default => $state ?: '—',
                     })
-                    ->color(fn($state) => match ($state) {
-                        'admin'      => 'danger',
-                        'supervisor' => 'warning',
-                        'manager'    => 'info',
-                        default      => 'gray',
+                    ->color(fn ($state) => match ($state) {
+                        'admin' => 'danger',
+                        'supervisor' => 'info',
+                        'manager' => 'gray',
+                        default => 'gray',
                     }),
 
                 Tables\Columns\TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
-                    ->formatStateUsing(fn($state) => match ($state) {
-                        'pending'  => 'Очікує',
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'pending' => 'Очікує',
                         'resolved' => 'Виконано',
                         'rejected' => 'Відхилено',
-                        default    => $state,
+                        default => $state,
                     })
-                    ->color(fn($state) => match ($state) {
-                        'pending'  => 'warning',
+                    ->color(fn ($state) => match ($state) {
+                        'pending' => 'gray',
                         'resolved' => 'success',
                         'rejected' => 'danger',
-                        default    => 'gray',
+                        default => 'gray',
                     }),
             ])
             ->recordActions([
                 Action::make('openUser')
                     ->label('Відкрити користувача')
                     ->icon('heroicon-o-user')
-                    ->url(fn(PasswordResetRequest $record) => $record->user
-                            ? "/admin/users/{$record->user->id}"
-                            : null
+                    ->url(fn (PasswordResetRequest $record) => $record->user
+                        ? "/admin/users/{$record->user->id}"
+                        : null
                     )
                     ->openUrlInNewTab(),
 
@@ -109,9 +110,9 @@ class PendingPasswordResetRequestsTable extends BaseWidget
                         }
 
                         $record->update([
-                            'status'         => 'resolved',
+                            'status' => 'resolved',
                             'resolved_by_id' => $user->id,
-                            'resolved_at'    => now(),
+                            'resolved_at' => now(),
                         ]);
 
                         Notification::make()
@@ -135,9 +136,9 @@ class PendingPasswordResetRequestsTable extends BaseWidget
                         }
 
                         $record->update([
-                            'status'         => 'rejected',
+                            'status' => 'rejected',
                             'resolved_by_id' => $user->id,
-                            'resolved_at'    => now(),
+                            'resolved_at' => now(),
                         ]);
 
                         Notification::make()

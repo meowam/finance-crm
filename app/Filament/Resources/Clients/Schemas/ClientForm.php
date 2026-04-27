@@ -10,7 +10,6 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Pages\CreateRecord;
-use Filament\Resources\Pages\EditRecord;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Support\Carbon;
@@ -19,6 +18,24 @@ use Illuminate\Validation\Rule;
 
 class ClientForm
 {
+    protected static function isProblemReassignMode(): bool
+    {
+        return request()->boolean('problem_reassign');
+    }
+
+    protected static function isActiveManager(?int $userId): bool
+    {
+        if (! $userId) {
+            return false;
+        }
+
+        return User::query()
+            ->whereKey($userId)
+            ->where('role', 'manager')
+            ->where('is_active', true)
+            ->exists();
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -35,6 +52,7 @@ class ClientForm
                     ->live()
                     ->rules([Rule::in(['individual', 'company'])])
                     ->default('individual')
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Оберіть тип клієнта.',
                     ]),
@@ -56,6 +74,7 @@ class ClientForm
                     ->rules([Rule::in(['lead', 'active', 'archived'])])
                     ->hiddenOn(CreateRecord::class)
                     ->default('active')
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Поле «Статус» є обовʼязковим.',
                     ]),
@@ -66,6 +85,7 @@ class ClientForm
                     ->minLength(2)
                     ->maxLength(50)
                     ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => "Поле є обов'язковим.",
                         'min' => "Поле повинно містити щонайменше 2 символи.",
@@ -79,6 +99,7 @@ class ClientForm
                     ->minLength(3)
                     ->maxLength(50)
                     ->rules(["regex:/^[\\p{L}’'\\- ]+$/u"])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Поле є обовʼязковим.',
                         'min' => 'Поле повинно містити щонайменше 3 символи.',
@@ -92,6 +113,7 @@ class ClientForm
                     ->minLength(2)
                     ->maxLength(50)
                     ->rules(['nullable', "regex:/^[\\p{L}’'\\- ]+$/u"])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'min' => 'Поле повинно містити щонайменше 2 символи.',
                         'max' => 'Поле повинно містити не більше 50 символів.',
@@ -105,6 +127,7 @@ class ClientForm
                     ->required(fn (Get $get) => $get('type') === 'company')
                     ->visible(fn (Get $get) => $get('type') === 'company')
                     ->rules(['nullable', 'string', 'max:150'])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть назву компанії.',
                         'max' => 'Назва компанії повинна містити не більше 150 символів.',
@@ -119,6 +142,7 @@ class ClientForm
                         'email',
                         Rule::unique('clients', 'primary_email')->ignore($record?->id),
                     ])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть електронну пошту.',
                         'email' => 'Електронна пошта повинна бути у коректному форматі. Приклад: manager@company.com',
@@ -134,6 +158,7 @@ class ClientForm
                         "regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/",
                         Rule::unique('clients', 'primary_phone')->ignore($record?->id),
                     ])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть номер телефону.',
                         'regex' => 'Телефон повинен бути у форматі +380XXXXXXXXX з коректним кодом оператора. Приклад: +380671234567.',
@@ -150,6 +175,7 @@ class ClientForm
                         'regex:/^[A-Z]{2}\\d{6}$/',
                         Rule::unique('clients', 'document_number')->ignore($record?->id),
                     ])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть номер документа.',
                         'regex' => 'Номер документа повинен бути у форматі AA123456: 2 великі латинські літери + 6 цифр.',
@@ -164,6 +190,7 @@ class ClientForm
                         $get('type') === 'company' ? 'regex:/^\\d{8,10}$/' : 'regex:/^\\d{10}$/',
                         Rule::unique('clients', 'tax_id')->ignore($record?->id),
                     ]))
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть податковий номер.',
                         'regex' => 'Для фізичної особи потрібно 10 цифр, для компанії - 8 або 10 цифр.',
@@ -185,6 +212,7 @@ class ClientForm
 
                         return ["after_or_equal:$min", "before_or_equal:$max"];
                     })
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть дату народження.',
                         'date' => 'Дата народження повинна бути у форматі дд.мм.рррр.',
@@ -202,6 +230,7 @@ class ClientForm
                     ->required()
                     ->rules([Rule::in(['phone', 'email'])])
                     ->default('phone')
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Оберіть бажаний спосіб звʼязку.',
                         'in' => 'Бажаний спосіб звʼязку повинен бути: «Телефон» або «Email».',
@@ -213,6 +242,7 @@ class ClientForm
                     ->required()
                     ->maxLength(50)
                     ->rules(['string', 'max:50'])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть місто.',
                         'max' => 'Назва міста повинна містити не більше 50 символів.',
@@ -224,6 +254,7 @@ class ClientForm
                     ->required()
                     ->maxLength(255)
                     ->rules(['string', 'max:255'])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Вкажіть адресу.',
                         'max' => 'Адреса повинна містити не більше 255 символів.',
@@ -242,12 +273,14 @@ class ClientForm
                     ->required()
                     ->rules([Rule::in(['office', 'online', 'recommendation', 'landing', 'other'])])
                     ->default('office')
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Оберіть канал звернення.',
                     ]),
 
                 Select::make('assigned_user_id')
                     ->label('Менеджер')
+                    ->placeholder('Оберіть менеджера')
                     ->options(function () {
                         /** @var User|null $user */
                         $user = Auth::user();
@@ -266,6 +299,17 @@ class ClientForm
                             ->pluck('name', 'id')
                             ->toArray();
                     })
+                    ->afterStateHydrated(function ($state, callable $set): void {
+                        if (! static::isProblemReassignMode()) {
+                            return;
+                        }
+
+                        $managerId = $state ? (int) $state : null;
+
+                        if (! static::isActiveManager($managerId)) {
+                            $set('assigned_user_id', null);
+                        }
+                    })
                     ->searchable()
                     ->preload()
                     ->native(false)
@@ -283,6 +327,10 @@ class ClientForm
 
                         if ($user instanceof User && $user->isManager()) {
                             return $user->id;
+                        }
+
+                        if (static::isProblemReassignMode()) {
+                            return null;
                         }
 
                         return app(ManagerAssignmentService::class)->resolveLeastBusyManagerId();
@@ -305,6 +353,7 @@ class ClientForm
                     ->nullable()
                     ->maxLength(2000)
                     ->rules(['nullable', 'string', 'max:2000'])
+                    ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'max' => 'Нотатки повинні містити не більше 2000 символів.',
                     ]),

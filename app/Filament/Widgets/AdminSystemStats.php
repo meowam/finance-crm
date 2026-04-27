@@ -13,6 +13,17 @@ class AdminSystemStats extends BaseWidget
 {
     protected ?string $heading = 'Системний стан CRM';
 
+    protected int|string|array $columnSpan = 'full';
+
+    protected function getColumns(): int|array
+    {
+        return [
+            'default' => 1,
+            'md' => 2,
+            '2xl' => 4,
+        ];
+    }
+
     public static function canView(): bool
     {
         /** @var User|null $user */
@@ -45,23 +56,23 @@ class AdminSystemStats extends BaseWidget
         $refundedSum = (float) ((clone $refundedPaymentsQuery)->sum('amount') ?: 0);
 
         return [
-            Stat::make('Активні користувачі за 24 год', (string) $activeUsers24h)
-                ->description('Усі ролі')
+            Stat::make('Активні користувачі', (string) $activeUsers24h)
+                ->description('За останні 24 години')
                 ->icon('heroicon-o-users')
                 ->color('success'),
 
-            Stat::make('Активні менеджери за 24 год', (string) $activeManagers24h)
-                ->description('Менеджери, які входили в систему')
+            Stat::make('Активні менеджери', (string) $activeManagers24h)
+                ->description('Входили за 24 години')
                 ->icon('heroicon-o-user-group')
                 ->color('info'),
 
-            Stat::make('Запити на зміну пароля', (string) $pendingPasswordRequests)
-                ->description('Очікують обробки адміністратором')
+            Stat::make('Зміна пароля', (string) $pendingPasswordRequests)
+                ->description('Очікують обробки')
                 ->icon('heroicon-o-key')
                 ->color($pendingPasswordRequests > 0 ? 'warning' : 'gray'),
 
-            Stat::make('Повернення оплат', $refundedCount . ' / ' . number_format($refundedSum, 2, ',', ' ') . ' ₴')
-                ->description('Оплати зі статусом refunded')
+            Stat::make('Повернення оплат', (string) $refundedCount)
+                ->description('Сума: ' . number_format($refundedSum, 2, ',', ' ') . ' ₴')
                 ->icon('heroicon-o-arrow-uturn-left')
                 ->color($refundedCount > 0 ? 'danger' : 'gray'),
         ];

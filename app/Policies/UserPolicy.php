@@ -13,17 +13,25 @@ class UserPolicy
 
     public function view(User $user, User $target): bool
     {
-        return $target->isManageableBy($user);
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isSupervisor()) {
+            return $target->isManager();
+        }
+
+        return false;
     }
 
     public function create(User $user): bool
     {
-        return $user->isAdmin() || $user->isSupervisor();
+        return $user->isAdmin();
     }
 
     public function update(User $user, User $target): bool
     {
-        return $target->isManageableBy($user);
+        return $user->isAdmin();
     }
 
     public function delete(User $user, User $target): bool

@@ -15,6 +15,24 @@ use Illuminate\Validation\Rule;
 
 class LeadRequestForm
 {
+    protected static function isProblemReassignMode(): bool
+    {
+        return request()->boolean('problem_reassign');
+    }
+
+    protected static function isActiveManager(?int $userId): bool
+    {
+        if (! $userId) {
+            return false;
+        }
+
+        return User::query()
+            ->whereKey($userId)
+            ->where('role', 'manager')
+            ->where('is_active', true)
+            ->exists();
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -30,7 +48,8 @@ class LeadRequestForm
                     ->default('individual')
                     ->live()
                     ->required()
-                    ->rules([Rule::in(['individual', 'company'])]),
+                    ->rules([Rule::in(['individual', 'company'])])
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 Select::make('status')
                     ->label('Статус')
@@ -43,62 +62,70 @@ class LeadRequestForm
                     ->native(false)
                     ->default('new')
                     ->required()
-                    ->disabled(fn (?string $operation) => $operation === 'create')
+                    ->disabled(fn (?string $operation) => $operation === 'create' || static::isProblemReassignMode())
                     ->dehydrated(true),
 
                 TextInput::make('first_name')
                     ->label(fn (Get $get) => $get('type') === 'company' ? "Ім'я контактної особи" : "Ім'я")
                     ->required()
-                    ->maxLength(50),
+                    ->maxLength(50)
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 TextInput::make('last_name')
                     ->label(fn (Get $get) => $get('type') === 'company' ? 'Прізвище контактної особи' : 'Прізвище')
                     ->required()
-                    ->maxLength(50),
+                    ->maxLength(50)
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 TextInput::make('middle_name')
                     ->label(fn (Get $get) => $get('type') === 'company' ? 'По батькові контактної особи' : 'По батькові')
-                    ->maxLength(50),
+                    ->maxLength(50)
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 TextInput::make('company_name')
                     ->label('Назва компанії')
                     ->required(fn (Get $get) => $get('type') === 'company')
                     ->visible(fn (Get $get) => $get('type') === 'company')
-                    ->maxLength(150),
+                    ->maxLength(150)
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 TextInput::make('phone')
                     ->label('Телефон')
                     ->tel()
                     ->required()
                     ->placeholder('+380671234567')
-                    ->rules(["regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/"]),
+                    ->rules(["regex:/^\\+380(39|50|63|66|67|68|73|91|92|93|94|95|96|97|98|99)\\d{7}$/"])
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 TextInput::make('email')
                     ->label('Email')
                     ->email()
-                    ->maxLength(150),
+                    ->maxLength(150)
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 TextInput::make('interest')
                     ->label('Цікавить продукт / послуга')
                     ->placeholder('Наприклад: автострахування, медичне страхування...')
                     ->maxLength(150)
-                    ->columnSpan(2),
+                    ->columnSpan(2)
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 Select::make('source')
                     ->label('Джерело')
                     ->options([
-                        'office' => 'Офіс',
-                        'online' => 'Онлайн',
-                        'recommendation' => 'Рекомендація',
                         'landing' => 'Лендінг',
-                        'other' => 'Інше',
+                        'online' => 'Онлайн-звернення',
+                        'recommendation' => 'Рекомендація',
                     ])
                     ->native(false)
                     ->default('online')
-                    ->required(),
+                    ->required()
+                    ->rules([Rule::in(['landing', 'online', 'recommendation'])])
+                    ->disabled(fn () => static::isProblemReassignMode()),
 
                 Select::make('assigned_user_id')
                     ->label('Менеджер')
+                    ->placeholder('Оберіть менеджера')
                     ->options(function () {
                         /** @var User|null $user */
                         $user = Auth::user();
@@ -125,7 +152,22 @@ class LeadRequestForm
                             return $user->id;
                         }
 
+                        if (static::isProblemReassignMode()) {
+                            return null;
+                        }
+
                         return app(ManagerAssignmentService::class)->resolveLeastBusyManagerId();
+                    })
+                    ->afterStateHydrated(function ($state, callable $set): void {
+                        if (! static::isProblemReassignMode()) {
+                            return;
+                        }
+
+                        $managerId = $state ? (int) $state : null;
+
+                        if (! static::isActiveManager($managerId)) {
+                            $set('assigned_user_id', null);
+                        }
                     })
                     ->disabled(function (): bool {
                         /** @var User|null $user */
@@ -157,7 +199,8 @@ class LeadRequestForm
                 Textarea::make('comment')
                     ->label('Коментар')
                     ->rows(4)
-                    ->columnSpan(2),
+                    ->columnSpan(2)
+                    ->disabled(fn () => static::isProblemReassignMode()),
             ]);
     }
 }

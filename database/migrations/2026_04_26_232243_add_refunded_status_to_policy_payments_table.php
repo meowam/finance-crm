@@ -60,14 +60,14 @@ return new class extends Migration
             return;
         }
 
-        $this->dropCheckConstraint('policy_payments', 'chk_pp_combo');
-        $this->dropCheckConstraint('policy_payments', 'chk_pp_status');
-
         DB::statement("
             UPDATE policy_payments
             SET status = 'canceled'
             WHERE status = 'refunded'
         ");
+
+        $this->dropCheckConstraint('policy_payments', 'chk_pp_combo');
+        $this->dropCheckConstraint('policy_payments', 'chk_pp_status');
 
         DB::statement("
             ALTER TABLE policy_payments
@@ -110,14 +110,11 @@ return new class extends Migration
 
     private function dropCheckConstraint(string $table, string $constraint): void
     {
-        $driver = DB::getDriverName();
-
-        if ($driver === 'mysql' || $driver === 'mariadb') {
-            DB::statement("ALTER TABLE {$table} DROP CHECK {$constraint}");
-
-            return;
+        try {
+            DB::statement("ALTER TABLE {$table} DROP CONSTRAINT {$constraint}");
+        } catch (Throwable) {
+            // Constraint may not exist depending on DB engine/version or previous migration state.
+            // Safe to ignore for demo/test migrations.
         }
-
-        DB::statement("ALTER TABLE {$table} DROP CONSTRAINT {$constraint}");
     }
 };

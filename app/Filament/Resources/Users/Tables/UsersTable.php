@@ -33,6 +33,12 @@ class UsersTable
                         'manager' => 'Менеджер',
                         default => $state,
                     })
+                    ->color(fn (string $state): string => match ($state) {
+                        'admin' => 'danger',
+                        'supervisor' => 'info',
+                        'manager' => 'gray',
+                        default => 'gray',
+                    })
                     ->badge()
                     ->sortable(),
 

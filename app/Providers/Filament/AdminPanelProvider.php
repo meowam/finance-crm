@@ -6,15 +6,16 @@ use App\Filament\Widgets\AdminProblemRecordsTable;
 use App\Filament\Widgets\AdminSystemStats;
 use App\Filament\Widgets\ClientsPoliciesTrendChart;
 use App\Filament\Widgets\ExpiringPoliciesTable;
+use App\Filament\Widgets\FullWidthAccountWidget;
+use App\Filament\Widgets\ManagerLoadHighlights;
 use App\Filament\Widgets\ManagerPerformanceTable;
-use App\Filament\Widgets\ManagerPoliciesChart;
 use App\Filament\Widgets\MyClaimNotesTable;
 use App\Filament\Widgets\MyNewLeadsTable;
 use App\Filament\Widgets\OverviewStats;
+use App\Filament\Widgets\PendingPasswordResetRequestsTable;
 use App\Filament\Widgets\PolicyStatusChart;
 use App\Filament\Widgets\RecentActivityLogTable;
 use App\Filament\Widgets\RecentInternalClaimNotesTable;
-use App\Filament\Widgets\PendingPasswordResetRequestsTable;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -23,7 +24,6 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
-use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
@@ -52,23 +52,22 @@ class AdminPanelProvider extends PanelProvider
             ->pages([
                 Dashboard::class,
             ])
-            ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->widgets([
-                AccountWidget::class,
+                FullWidthAccountWidget::class,
 
                 AdminSystemStats::class,
                 PendingPasswordResetRequestsTable::class,
                 RecentActivityLogTable::class,
                 AdminProblemRecordsTable::class,
 
+                ManagerLoadHighlights::class,
+                ExpiringPoliciesTable::class,
                 ManagerPerformanceTable::class,
-                ManagerPoliciesChart::class,
                 RecentInternalClaimNotesTable::class,
 
                 OverviewStats::class,
                 ClientsPoliciesTrendChart::class,
                 PolicyStatusChart::class,
-                ExpiringPoliciesTable::class,
                 MyNewLeadsTable::class,
                 MyClaimNotesTable::class,
             ])

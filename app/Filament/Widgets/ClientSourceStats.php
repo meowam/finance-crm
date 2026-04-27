@@ -12,6 +12,17 @@ class ClientSourceStats extends BaseWidget
 {
     protected ?string $heading = 'Клієнти за останні 30 днів';
 
+    protected int|string|array $columnSpan = 'full';
+
+    protected function getColumns(): int|array
+    {
+        return [
+            'default' => 1,
+            'md' => 2,
+            '2xl' => 4,
+        ];
+    }
+
     protected function getStats(): array
     {
         /** @var User|null $user */
@@ -24,28 +35,28 @@ class ClientSourceStats extends BaseWidget
             $baseQuery->where('assigned_user_id', $user->id);
         }
 
-        $newClientsCount            = (clone $baseQuery)->count();
-        $onlineClientsCount         = (clone $baseQuery)->where('source', 'online')->count();
-        $officeClientsCount         = (clone $baseQuery)->where('source', 'office')->count();
+        $newClientsCount = (clone $baseQuery)->count();
+        $onlineClientsCount = (clone $baseQuery)->where('source', 'online')->count();
+        $officeClientsCount = (clone $baseQuery)->where('source', 'office')->count();
         $recommendationClientsCount = (clone $baseQuery)->where('source', 'recommendation')->count();
 
         return [
             Stat::make('Нові клієнти', (string) $newClientsCount)
-                ->description('Усі джерела за 30 днів')
+                ->description('Усі канали')
                 ->icon('heroicon-o-user-plus'),
 
             Stat::make('Через офіс', (string) $officeClientsCount)
-                ->description('Джерело: office')
+                ->description('Офісні звернення')
                 ->icon('heroicon-o-briefcase')
                 ->color('info'),
 
-            Stat::make('Самостійно онлайн', (string) $onlineClientsCount)
-                ->description('Джерело: online')
+            Stat::make('Онлайн', (string) $onlineClientsCount)
+                ->description('Онлайн-звернення')
                 ->icon('heroicon-o-globe-alt')
                 ->color('success'),
 
             Stat::make('За рекомендацією', (string) $recommendationClientsCount)
-                ->description('Джерело: recommendation')
+                ->description('Рекомендації')
                 ->icon('heroicon-o-hand-thumb-up')
                 ->color('warning'),
         ];

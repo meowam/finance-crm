@@ -10,6 +10,7 @@ use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
 
@@ -19,7 +20,14 @@ class EditClient extends EditRecord
 
     public function getTitle(): string
     {
-        return 'Редагувати клієнта';
+        return $this->isProblemReassignMode()
+            ? 'Перепризначити менеджера клієнта'
+            : 'Редагувати клієнта';
+    }
+
+    protected function isProblemReassignMode(): bool
+    {
+        return request()->boolean('problem_reassign');
     }
 
     protected function authorizeAccess(): void
@@ -123,16 +131,35 @@ class EditClient extends EditRecord
 
         $data = $this->ensureValidAssignedManager($data, $user);
 
+        if ($this->isProblemReassignMode()) {
+            return [
+                'assigned_user_id' => $data['assigned_user_id'],
+            ];
+        }
+
         $this->checkForDuplicateClients($data);
 
         return $data;
+    }
+
+    protected function handleRecordUpdate(Model $record, array $data): Model
+    {
+        if ($this->isProblemReassignMode()) {
+            $record->update([
+                'assigned_user_id' => $data['assigned_user_id'],
+            ]);
+
+            return $record->refresh();
+        }
+
+        return parent::handleRecordUpdate($record, $data);
     }
 
     protected function getFormActions(): array
     {
         return [
             Actions\Action::make('save')
-                ->label('Зберегти зміни')
+                ->label($this->isProblemReassignMode() ? 'Перепризначити менеджера' : 'Зберегти зміни')
                 ->submit('save'),
 
             Actions\Action::make('cancel')
@@ -153,7 +180,7 @@ class EditClient extends EditRecord
         return [
             DeleteAction::make()
                 ->label('Видалити')
-                ->visible($user instanceof User && $user->can('delete', $client))
+                ->visible(! $this->isProblemReassignMode() && $user instanceof User && $user->can('delete', $client))
                 ->requiresConfirmation()
                 ->modalDescription(fn () => $client->hasDeletionHistory()
                     ? 'У клієнта є пов’язані історичні записи. Він буде архівований через soft delete та зникне з активних списків, але історія збережеться.'

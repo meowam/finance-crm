@@ -18,6 +18,8 @@ class ManagerPerformanceTable extends BaseWidget
 {
     protected static ?string $heading = 'Навантаження менеджерів';
 
+    protected static ?int $sort = 50;
+
     protected int|string|array $columnSpan = 'full';
 
     public static function canView(): bool
@@ -37,11 +39,11 @@ class ManagerPerformanceTable extends BaseWidget
                     ->where('is_active', true)
                     ->orderBy('name')
             )
-            ->defaultPaginationPageOption(10)
+            ->paginated(false)
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Менеджер')
-                    ->searchable(),
+                    ->wrap(),
 
                 Tables\Columns\TextColumn::make('open_leads')
                     ->label('Активні заявки')
@@ -66,8 +68,8 @@ class ManagerPerformanceTable extends BaseWidget
                 Tables\Columns\TextColumn::make('active_policies')
                     ->label('Активні поліси')
                     ->state(fn (User $record) => Policy::query()
-                        ->where('agent_id', $record->id)
                         ->where('status', 'active')
+                        ->whereHas('client', fn (Builder $query) => $query->where('assigned_user_id', $record->id))
                         ->count()
                     )
                     ->badge()
@@ -77,7 +79,7 @@ class ManagerPerformanceTable extends BaseWidget
                     ->label('Прострочені оплати')
                     ->state(fn (User $record) => PolicyPayment::query()
                         ->where('status', 'overdue')
-                        ->whereHas('policy', fn (Builder $query) => $query->where('agent_id', $record->id))
+                        ->whereHas('policy.client', fn (Builder $query) => $query->where('assigned_user_id', $record->id))
                         ->count()
                     )
                     ->badge()
@@ -87,7 +89,7 @@ class ManagerPerformanceTable extends BaseWidget
                     ->label('Повернені оплати')
                     ->state(fn (User $record) => PolicyPayment::query()
                         ->where('status', 'refunded')
-                        ->whereHas('policy', fn (Builder $query) => $query->where('agent_id', $record->id))
+                        ->whereHas('policy.client', fn (Builder $query) => $query->where('assigned_user_id', $record->id))
                         ->count()
                     )
                     ->badge()
@@ -96,7 +98,7 @@ class ManagerPerformanceTable extends BaseWidget
                 Tables\Columns\TextColumn::make('claims')
                     ->label('Страхові випадки')
                     ->state(fn (User $record) => Claim::query()
-                        ->whereHas('policy', fn (Builder $query) => $query->where('agent_id', $record->id))
+                        ->whereHas('policy.client', fn (Builder $query) => $query->where('assigned_user_id', $record->id))
                         ->count()
                     )
                     ->badge()

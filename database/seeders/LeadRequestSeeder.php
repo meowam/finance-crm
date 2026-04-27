@@ -72,11 +72,12 @@ class LeadRequestSeeder extends Seeder
         $sources = [
             'landing',
             'landing',
+            'landing',
+            'online',
             'online',
             'online',
             'recommendation',
-            'office',
-            'other',
+            'recommendation',
         ];
 
         for ($i = 0; $i < 32; $i++) {
