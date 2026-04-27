@@ -3,10 +3,12 @@
 namespace App\Filament\Resources\ClaimNotes\Pages;
 
 use App\Filament\Resources\ClaimNotes\ClaimNoteResource;
+use App\Models\Claim;
 use App\Models\User;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class EditClaimNote extends EditRecord
 {
@@ -19,13 +21,38 @@ class EditClaimNote extends EditRecord
         /** @var User|null $user */
         $user = Auth::user();
 
-        if (
-            $user instanceof User &&
-            $user->isManager() &&
-            (int) optional($this->record->claim)->reported_by_id !== (int) $user->id
-        ) {
+        abort_unless($user instanceof User, 403);
+        abort_unless($user->can('update', $this->record), 403);
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        abort_unless($user instanceof User, 403);
+        abort_unless($user->can('update', $this->record), 403);
+
+        $claimId = isset($data['claim_id']) ? (int) $data['claim_id'] : 0;
+
+        if ($claimId <= 0) {
+            throw ValidationException::withMessages([
+                'claim_id' => 'Оберіть заяву.',
+            ]);
+        }
+
+        $claim = Claim::query()
+            ->with('policy')
+            ->find($claimId);
+
+        if (! $claim || ! $claim->isVisibleTo($user)) {
             abort(403);
         }
+
+        // Автор нотатки не змінюється при редагуванні.
+        $data['user_id'] = (int) $this->record->user_id;
+
+        return $data;
     }
 
     protected function getHeaderActions(): array
@@ -35,7 +62,7 @@ class EditClaimNote extends EditRecord
 
         return [
             DeleteAction::make()
-                ->visible($user instanceof User && ! $user->isManager()),
+                ->visible($user instanceof User && $user->can('delete', $this->record)),
         ];
     }
 }

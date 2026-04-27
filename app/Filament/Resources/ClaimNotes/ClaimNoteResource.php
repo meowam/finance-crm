@@ -26,6 +26,22 @@ class ClaimNoteResource extends Resource
     protected static ?string $modelLabel = 'Нотатка';
     protected static ?string $pluralModelLabel = 'Нотатки';
 
+    public static function canViewAny(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user instanceof User && $user->can('viewAny', ClaimNote::class);
+    }
+
+    public static function canCreate(): bool
+    {
+        /** @var User|null $user */
+        $user = Auth::user();
+
+        return $user instanceof User && $user->can('create', ClaimNote::class);
+    }
+
     public static function form(Schema $schema): Schema
     {
         return ClaimNoteForm::configure($schema);
@@ -38,9 +54,7 @@ class ClaimNoteResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getEloquentQuery(): Builder
@@ -48,15 +62,23 @@ class ClaimNoteResource extends Resource
         /** @var User|null $user */
         $user = Auth::user();
 
-        $query = parent::getEloquentQuery()->with(['claim', 'user']);
+        $query = parent::getEloquentQuery()->with(['claim.policy', 'user']);
 
-        if ($user instanceof User && $user->isManager()) {
-            $query->whereHas('claim', function (Builder $claimQuery) use ($user) {
-                $claimQuery->where('reported_by_id', $user->id);
+        if (! $user instanceof User) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        if ($user->isAdmin() || $user->isSupervisor()) {
+            return $query;
+        }
+
+        if ($user->isManager()) {
+            return $query->whereHas('claim.policy', function (Builder $policyQuery) use ($user) {
+                $policyQuery->where('agent_id', $user->id);
             });
         }
 
-        return $query;
+        return $query->whereRaw('1 = 0');
     }
 
     public static function shouldRegisterNavigation(): bool
@@ -68,7 +90,7 @@ class ClaimNoteResource extends Resource
             return false;
         }
 
-        return ! $user->isManager();
+        return $user->can('viewAny', ClaimNote::class);
     }
 
     public static function getPages(): array

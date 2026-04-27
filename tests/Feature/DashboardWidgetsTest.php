@@ -1,4 +1,5 @@
 <?php
+
 namespace Tests\Feature;
 
 use App\Filament\Widgets\ClientsPoliciesTrendChart;
@@ -134,14 +135,14 @@ class DashboardWidgetsTest extends TestCase
         $this->assertSame('doughnut', $widget->exposeType());
     }
 
-    public function test_manager_policies_chart_is_visible_only_to_admin_and_supervisor(): void
+    public function test_manager_policies_chart_is_visible_only_to_supervisor(): void
     {
         $admin      = $this->makeUser('admin');
         $supervisor = $this->makeUser('supervisor');
         $manager    = $this->makeUser('manager');
 
         $this->actingAs($admin);
-        $this->assertTrue(ManagerPoliciesChart::canView());
+        $this->assertFalse(ManagerPoliciesChart::canView());
 
         $this->actingAs($supervisor);
         $this->assertTrue(ManagerPoliciesChart::canView());

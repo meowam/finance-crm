@@ -3,9 +3,11 @@
 namespace App\Filament\Resources\ClaimNotes\Schemas;
 
 use App\Models\User;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Schemas\Schema;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
@@ -21,13 +23,29 @@ class ClaimNoteForm
                     ->relationship(
                         name: 'claim',
                         titleAttribute: 'claim_number',
-                        modifyQueryUsing: function ($query) {
+                        modifyQueryUsing: function (Builder $query) {
                             /** @var User|null $user */
                             $user = Auth::user();
 
-                            if ($user instanceof User && $user->isManager()) {
-                                $query->where('reported_by_id', $user->id);
+                            if (! $user instanceof User) {
+                                $query->whereRaw('1 = 0');
+
+                                return;
                             }
+
+                            if ($user->isAdmin() || $user->isSupervisor()) {
+                                return;
+                            }
+
+                            if ($user->isManager()) {
+                                $query->whereHas('policy', function (Builder $policyQuery) use ($user) {
+                                    $policyQuery->where('agent_id', $user->id);
+                                });
+
+                                return;
+                            }
+
+                            $query->whereRaw('1 = 0');
                         }
                     )
                     ->searchable()
@@ -48,36 +66,10 @@ class ClaimNoteForm
                     ->default('внутрішня')
                     ->columnSpan(1),
 
-                Select::make('user_id')
-                    ->label('Менеджер')
-                    ->options(function () {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        if ($user instanceof User && $user->isManager()) {
-                            return User::query()
-                                ->whereKey($user->id)
-                                ->pluck('name', 'id')
-                                ->toArray();
-                        }
-
-                        return User::query()
-                            ->where('is_active', true)
-                            ->whereIn('role', ['manager', 'supervisor', 'admin'])
-                            ->orderBy('name')
-                            ->pluck('name', 'id')
-                            ->toArray();
-                    })
+                Hidden::make('user_id')
                     ->default(fn () => Auth::id())
-                    ->disabled(function (): bool {
-                        /** @var User|null $user */
-                        $user = Auth::user();
-
-                        return $user instanceof User && $user->isManager();
-                    })
                     ->dehydrated(true)
-                    ->required()
-                    ->columnSpan(1),
+                    ->rules(['required', 'exists:users,id']),
 
                 Textarea::make('note')
                     ->label('Нотатка')

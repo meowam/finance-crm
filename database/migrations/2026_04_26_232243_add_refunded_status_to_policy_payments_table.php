@@ -7,8 +7,12 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement('ALTER TABLE policy_payments DROP CONSTRAINT chk_pp_combo');
-        DB::statement('ALTER TABLE policy_payments DROP CONSTRAINT chk_pp_status');
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
+        $this->dropCheckConstraint('policy_payments', 'chk_pp_combo');
+        $this->dropCheckConstraint('policy_payments', 'chk_pp_status');
 
         DB::statement("
             ALTER TABLE policy_payments
@@ -52,8 +56,12 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::statement('ALTER TABLE policy_payments DROP CONSTRAINT chk_pp_combo');
-        DB::statement('ALTER TABLE policy_payments DROP CONSTRAINT chk_pp_status');
+        if (DB::getDriverName() === 'sqlite') {
+            return;
+        }
+
+        $this->dropCheckConstraint('policy_payments', 'chk_pp_combo');
+        $this->dropCheckConstraint('policy_payments', 'chk_pp_status');
 
         DB::statement("
             UPDATE policy_payments
@@ -98,5 +106,18 @@ return new class extends Migration
                 )
             )
         ");
+    }
+
+    private function dropCheckConstraint(string $table, string $constraint): void
+    {
+        $driver = DB::getDriverName();
+
+        if ($driver === 'mysql' || $driver === 'mariadb') {
+            DB::statement("ALTER TABLE {$table} DROP CHECK {$constraint}");
+
+            return;
+        }
+
+        DB::statement("ALTER TABLE {$table} DROP CONSTRAINT {$constraint}");
     }
 };

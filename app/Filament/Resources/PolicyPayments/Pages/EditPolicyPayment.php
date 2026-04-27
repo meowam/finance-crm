@@ -19,14 +19,14 @@ class EditPolicyPayment extends EditRecord
             ? $this->record->status->value
             : (string) $this->record->status;
 
-        return in_array(mb_strtolower($status), ['paid', 'overdue'], true);
+        return in_array(mb_strtolower($status), ['paid', 'overdue', 'refunded'], true);
     }
 
     protected function notifyLock(): void
     {
         Notification::make()
             ->title('ЦЕЙ ЗАПИС НЕМОЖЛИВО ВІДРЕДАГУВАТИ')
-            ->body('Платіж має статус сплачено або протерміновано. Зміни та видалення недоступні.')
+            ->body('Платіж має фінальний статус: сплачено, протерміновано або повернено. Зміни та видалення недоступні.')
             ->icon('heroicon-o-lock-closed')
             ->danger()
             ->persistent()

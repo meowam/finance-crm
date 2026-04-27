@@ -4,9 +4,11 @@ namespace App\Filament\Resources\ClaimNotes\Pages;
 
 use App\Filament\Resources\ClaimNotes\ClaimNoteResource;
 use App\Models\Claim;
+use App\Models\ClaimNote;
 use App\Models\User;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class CreateClaimNote extends CreateRecord
 {
@@ -17,17 +19,26 @@ class CreateClaimNote extends CreateRecord
         /** @var User|null $user */
         $user = Auth::user();
 
-        $data['user_id'] = $user?->id;
+        abort_unless($user instanceof User, 403);
+        abort_unless($user->can('create', ClaimNote::class), 403);
 
-        if ($user instanceof User && $user->isManager()) {
-            if (! empty($data['claim_id'])) {
-                $claim = Claim::query()->find($data['claim_id']);
+        $claimId = isset($data['claim_id']) ? (int) $data['claim_id'] : 0;
 
-                if (! $claim || (int) $claim->reported_by_id !== (int) $user->id) {
-                    abort(403);
-                }
-            }
+        if ($claimId <= 0) {
+            throw ValidationException::withMessages([
+                'claim_id' => 'Оберіть заяву.',
+            ]);
         }
+
+        $claim = Claim::query()
+            ->with('policy')
+            ->find($claimId);
+
+        if (! $claim || ! $claim->isVisibleTo($user)) {
+            abort(403);
+        }
+
+        $data['user_id'] = $user->id;
 
         return $data;
     }
