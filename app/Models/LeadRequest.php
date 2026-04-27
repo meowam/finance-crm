@@ -104,7 +104,7 @@ class LeadRequest extends Model
             return $this->company_name;
         }
 
-        return $this->full_name !== '—' ? $this->full_name : ('Lead #' . $this->id);
+        return $this->full_name !== '—' ? $this->full_name : ('Заявка #' . $this->id);
     }
 
     public function getActivityLogLabelAttribute(): string

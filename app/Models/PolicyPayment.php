@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use App\Enums\PaymentMethod;
@@ -33,12 +32,12 @@ class PolicyPayment extends Model
     ];
 
     protected $casts = [
-        'due_date' => 'date',
+        'due_date'     => 'date',
         'initiated_at' => 'datetime',
-        'paid_at' => 'datetime',
-        'amount' => 'decimal:2',
-        'status' => PaymentStatus::class,
-        'method' => PaymentMethod::class,
+        'paid_at'      => 'datetime',
+        'amount'       => 'decimal:2',
+        'status'       => PaymentStatus::class,
+        'method'       => PaymentMethod::class,
     ];
 
     public function policy()
@@ -100,9 +99,9 @@ class PolicyPayment extends Model
     {
         return match ($method) {
             'cash', 'card' => ['paid', 'canceled', 'refunded'],
-            'transfer' => ['scheduled', 'paid', 'canceled', 'overdue', 'refunded'],
+            'transfer'  => ['scheduled', 'paid', 'canceled', 'overdue', 'refunded'],
             'no_method' => ['draft', 'overdue', 'canceled'],
-            default => [],
+            default     => [],
         };
     }
 
@@ -111,7 +110,7 @@ class PolicyPayment extends Model
         return self::query()
             ->where('policy_id', $policyId)
             ->whereIn('status', self::ACTIVE_STATUSES)
-            ->when($ignorePaymentId, fn (Builder $query) => $query->where('id', '!=', $ignorePaymentId))
+            ->when($ignorePaymentId, fn(Builder $query) => $query->where('id', '!=', $ignorePaymentId))
             ->exists();
     }
 
@@ -140,7 +139,7 @@ class PolicyPayment extends Model
             }
 
             if (blank($model->due_date)) {
-                $base = $model->policy?->effective_date ?: now()->toDateString();
+                $base            = $model->policy?->effective_date ?: now()->toDateString();
                 $model->due_date = Carbon::parse($base)->addDays(7)->toDateString();
             }
 
@@ -186,7 +185,7 @@ class PolicyPayment extends Model
 
     public function getActivityLogLabel(): string
     {
-        $policyNumber = $this->policy?->policy_number ?: ('policy #' . $this->policy_id);
+        $policyNumber = $this->policy?->policy_number ?: ('поліс #' . $this->policy_id);
 
         return "Оплата {$policyNumber}";
     }

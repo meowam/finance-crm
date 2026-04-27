@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Models;
 
 use App\Models\Concerns\LogsActivity;
@@ -30,7 +29,7 @@ class ClaimNote extends Model
 
     public function getActivityLogLabel(): string
     {
-        $claimNumber = $this->claim?->claim_number ?: ('claim #' . $this->claim_id);
+        $claimNumber = $this->claim?->claim_number ?: ('заява #' . $this->claim_id);
 
         return "Нотатка до {$claimNumber}";
     }
