@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Policies\Tables;
 
+use App\Enums\PaymentStatus;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\Policy;
 use App\Models\User;
@@ -26,6 +27,33 @@ class PoliciesTable
         return mb_strtolower(self::str($v));
     }
 
+    protected static function paymentStatusPriorityMap(): array
+    {
+        return [
+            PaymentStatus::Paid->value => 1,
+            PaymentStatus::Scheduled->value => 2,
+            PaymentStatus::Overdue->value => 3,
+            PaymentStatus::Draft->value => 4,
+            PaymentStatus::Refunded->value => 5,
+            PaymentStatus::Canceled->value => 6,
+        ];
+    }
+
+    protected static function higherPriorityPaymentStatuses(string $status): array
+    {
+        $map = self::paymentStatusPriorityMap();
+        $currentPriority = $map[$status] ?? null;
+
+        if ($currentPriority === null) {
+            return [];
+        }
+
+        return collect($map)
+            ->filter(fn (int $priority) => $priority < $currentPriority)
+            ->keys()
+            ->all();
+    }
+
     public static function configure(Table $table): Table
     {
         return $table
@@ -39,7 +67,7 @@ class PoliciesTable
                         'client:id,primary_email,primary_phone,document_number,tax_id,first_name,last_name,middle_name,company_name,type',
                         'insuranceOffer.insuranceProduct:id,name',
                         'agent:id,name',
-                        'latestPayment',
+                        'payments',
                     ]);
             })
             ->defaultPaginationPageOption(25)
@@ -49,8 +77,9 @@ class PoliciesTable
                     ->searchable()
                     ->sortable(),
 
-                TextColumn::make('latestPayment.status')
+                TextColumn::make('actual_payment_status')
                     ->label('Оплата')
+                    ->state(fn (Policy $record): ?string => $record->actual_payment_status)
                     ->badge()
                     ->formatStateUsing(fn ($state) => match (self::low($state)) {
                         'paid' => 'Сплачено',
@@ -255,9 +284,17 @@ class PoliciesTable
                             return $query;
                         }
 
-                        return $query->whereHas('latestPayment', function (EloquentBuilder $paymentQuery) use ($value) {
-                            $paymentQuery->where('status', $value);
-                        });
+                        $higherPriorityStatuses = self::higherPriorityPaymentStatuses($value);
+
+                        return $query
+                            ->whereHas('payments', function (EloquentBuilder $paymentQuery) use ($value) {
+                                $paymentQuery->where('status', $value);
+                            })
+                            ->when($higherPriorityStatuses !== [], function (EloquentBuilder $query) use ($higherPriorityStatuses) {
+                                $query->whereDoesntHave('payments', function (EloquentBuilder $paymentQuery) use ($higherPriorityStatuses) {
+                                    $paymentQuery->whereIn('status', $higherPriorityStatuses);
+                                });
+                            });
                     }),
             ])
             ->recordActions([

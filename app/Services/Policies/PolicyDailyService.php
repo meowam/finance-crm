@@ -19,7 +19,9 @@ class PolicyDailyService
                 $this->markOverdueNoMethod(),
             );
 
-            $this->randomizeScheduledToPaid($rate);
+            $paidPolicyIds = $this->randomizeScheduledToPaid($rate);
+
+            $this->cancelOtherUnfinishedPaymentsForPolicies($paidPolicyIds);
             $this->recomputeAllPolicyStatuses();
 
             return $newOverdueIds;
@@ -77,7 +79,7 @@ class PolicyDailyService
         return $ids;
     }
 
-    protected function randomizeScheduledToPaid(float $rate): void
+    protected function randomizeScheduledToPaid(float $rate): array
     {
         $ids = PolicyPayment::query()
             ->select('policy_payments.id')
@@ -90,7 +92,7 @@ class PolicyDailyService
             ->all();
 
         if (empty($ids)) {
-            return;
+            return [];
         }
 
         shuffle($ids);
@@ -98,16 +100,56 @@ class PolicyDailyService
         $take = max(0, (int) ceil(count($ids) * $rate));
 
         if ($take === 0) {
-            return;
+            return [];
         }
 
-        $pick = array_slice($ids, 0, $take);
+        $pickedPaymentIds = array_slice($ids, 0, $take);
+
+        $policyIds = PolicyPayment::query()
+            ->whereIn('id', $pickedPaymentIds)
+            ->pluck('policy_id')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values()
+            ->all();
 
         DB::table('policy_payments')
-            ->whereIn('id', $pick)
+            ->whereIn('id', $pickedPaymentIds)
             ->update([
                 'status' => PaymentStatus::Paid->value,
                 'paid_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        return $policyIds;
+    }
+
+    protected function cancelOtherUnfinishedPaymentsForPolicies(array $policyIds): void
+    {
+        if ($policyIds === []) {
+            return;
+        }
+
+        $paidPaymentIds = DB::table('policy_payments')
+            ->whereIn('policy_id', $policyIds)
+            ->where('status', PaymentStatus::Paid->value)
+            ->pluck('id')
+            ->all();
+
+        if ($paidPaymentIds === []) {
+            return;
+        }
+
+        DB::table('policy_payments')
+            ->whereIn('policy_id', $policyIds)
+            ->whereNotIn('id', $paidPaymentIds)
+            ->whereIn('status', [
+                PaymentStatus::Draft->value,
+                PaymentStatus::Scheduled->value,
+                PaymentStatus::Overdue->value,
+            ])
+            ->update([
+                'status' => PaymentStatus::Canceled->value,
                 'updated_at' => now(),
             ]);
     }

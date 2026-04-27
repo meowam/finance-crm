@@ -257,6 +257,7 @@ class ClaimForm
                     ->relationship('notes')
                     ->defaultItems(0)
                     ->reorderable(false)
+                    ->deletable(false)
                     ->schema([
                         Select::make('visibility')
                             ->label('Видимість')
@@ -267,6 +268,8 @@ class ClaimForm
                             ->native(false)
                             ->required()
                             ->rules([Rule::in(['внутрішня', 'зовнішня'])])
+                            ->disabled(fn ($record) => $record !== null)
+                            ->dehydrated(true)
                             ->validationMessages([
                                 'required' => 'Оберіть видимість нотатки.',
                                 'in' => 'Недопустиме значення видимості.',
@@ -297,6 +300,8 @@ class ClaimForm
                             ->rows(4)
                             ->required()
                             ->rules(['required', 'string'])
+                            ->disabled(fn ($record) => $record !== null)
+                            ->dehydrated(true)
                             ->validationMessages([
                                 'required' => 'Введіть текст нотатки.',
                             ])

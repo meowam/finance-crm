@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Claims\Pages;
 use App\Enums\ClaimStatus;
 use App\Enums\PolicyStatus;
 use App\Filament\Resources\Claims\ClaimResource;
+use App\Models\ClaimNote;
 use App\Models\Policy;
 use App\Models\User;
 use Filament\Actions\DeleteAction;
@@ -44,8 +45,9 @@ class EditClaim extends EditRecord
             ->keyBy('id');
 
         $normalized = [];
+        $seenExistingNoteIds = [];
 
-        foreach ($data['notes'] as $key => $noteData) {
+        foreach ($data['notes'] as $noteData) {
             if (! is_array($noteData)) {
                 continue;
             }
@@ -53,13 +55,39 @@ class EditClaim extends EditRecord
             $noteId = isset($noteData['id']) ? (int) $noteData['id'] : 0;
 
             if ($noteId > 0 && $existingNotes->has($noteId)) {
-                $noteData['user_id'] = $existingNotes->get($noteId)->user_id;
-            } else {
-                unset($noteData['id']);
-                $noteData['user_id'] = $user->id;
+                /** @var ClaimNote $existingNote */
+                $existingNote = $existingNotes->get($noteId);
+
+                $seenExistingNoteIds[] = $existingNote->id;
+
+                $normalized[] = [
+                    'id' => $existingNote->id,
+                    'user_id' => $existingNote->user_id,
+                    'visibility' => $existingNote->visibility,
+                    'note' => $existingNote->note,
+                ];
+
+                continue;
             }
 
-            $normalized[$key] = $noteData;
+            unset($noteData['id']);
+
+            $noteData['user_id'] = $user->id;
+
+            $normalized[] = $noteData;
+        }
+
+        foreach ($existingNotes as $existingNote) {
+            if (in_array((int) $existingNote->id, $seenExistingNoteIds, true)) {
+                continue;
+            }
+
+            $normalized[] = [
+                'id' => $existingNote->id,
+                'user_id' => $existingNote->user_id,
+                'visibility' => $existingNote->visibility,
+                'note' => $existingNote->note,
+            ];
         }
 
         $data['notes'] = $normalized;

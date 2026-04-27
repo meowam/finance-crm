@@ -68,6 +68,60 @@ class Policy extends Model
         return $this->hasOne(PolicyPayment::class)->latestOfMany();
     }
 
+    public function getActualPaymentAttribute(): ?PolicyPayment
+    {
+        $payments = $this->relationLoaded('payments')
+            ? $this->payments
+            : $this->payments()->get();
+
+        return $payments
+            ->sort(function (PolicyPayment $a, PolicyPayment $b): int {
+                $aStatus = $a->status instanceof PaymentStatus
+                    ? $a->status->value
+                    : (string) $a->status;
+
+                $bStatus = $b->status instanceof PaymentStatus
+                    ? $b->status->value
+                    : (string) $b->status;
+
+                $aPriority = self::actualPaymentStatusPriority($aStatus);
+                $bPriority = self::actualPaymentStatusPriority($bStatus);
+
+                if ($aPriority === $bPriority) {
+                    return (int) $b->id <=> (int) $a->id;
+                }
+
+                return $aPriority <=> $bPriority;
+            })
+            ->first();
+    }
+
+    public function getActualPaymentStatusAttribute(): ?string
+    {
+        $payment = $this->actual_payment;
+
+        if (! $payment instanceof PolicyPayment) {
+            return null;
+        }
+
+        return $payment->status instanceof PaymentStatus
+            ? $payment->status->value
+            : (string) $payment->status;
+    }
+
+    public static function actualPaymentStatusPriority(string $status): int
+    {
+        return match ($status) {
+            PaymentStatus::Paid->value => 1,
+            PaymentStatus::Scheduled->value => 2,
+            PaymentStatus::Overdue->value => 3,
+            PaymentStatus::Draft->value => 4,
+            PaymentStatus::Refunded->value => 5,
+            PaymentStatus::Canceled->value => 6,
+            default => 99,
+        };
+    }
+
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
         if (! $user instanceof User) {
@@ -172,6 +226,31 @@ class Policy extends Model
         });
     }
 
+    protected function activateClientIfPolicyIsActive(PolicyStatus $newStatus): void
+    {
+        if ($newStatus !== PolicyStatus::Active) {
+            return;
+        }
+
+        $client = $this->client;
+
+        if (! $client instanceof Client) {
+            return;
+        }
+
+        if ($client->trashed()) {
+            return;
+        }
+
+        if ($client->status !== 'lead') {
+            return;
+        }
+
+        $client->forceFill([
+            'status' => 'active',
+        ])->saveQuietly();
+    }
+
     protected static function booted(): void
     {
         static::creating(function (Policy $model) {
@@ -273,6 +352,8 @@ class Policy extends Model
             $this->status = $newStatus;
             $this->saveQuietly();
         }
+
+        $this->activateClientIfPolicyIsActive($newStatus);
     }
 
     public function getActivityLogLabel(): string
