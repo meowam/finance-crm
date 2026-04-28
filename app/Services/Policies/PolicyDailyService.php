@@ -146,7 +146,6 @@ class PolicyDailyService
             ->whereIn('status', [
                 PaymentStatus::Draft->value,
                 PaymentStatus::Scheduled->value,
-                PaymentStatus::Overdue->value,
             ])
             ->update([
                 'status' => PaymentStatus::Canceled->value,

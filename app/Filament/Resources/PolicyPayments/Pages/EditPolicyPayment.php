@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\PolicyPayments\Pages;
 
 use App\Filament\Resources\PolicyPayments\PolicyPaymentResource;
+use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -15,7 +16,7 @@ class EditPolicyPayment extends EditRecord
 
     protected function isLocked(): bool
     {
-        $status = $this->record->status instanceof \BackedEnum
+        $status = $this->record->status instanceof BackedEnum
             ? $this->record->status->value
             : (string) $this->record->status;
 
@@ -33,7 +34,7 @@ class EditPolicyPayment extends EditRecord
             ->send();
     }
 
-    public function mount($record): void
+    public function mount(int|string $record): void
     {
         parent::mount($record);
 
@@ -42,7 +43,7 @@ class EditPolicyPayment extends EditRecord
         }
     }
 
-    public function updated($name, $value): void
+    public function updated(string $name, mixed $value): void
     {
         if ($this->isLocked()) {
             $this->notifyLock();

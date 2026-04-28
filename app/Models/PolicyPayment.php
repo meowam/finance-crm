@@ -23,7 +23,6 @@ class PolicyPayment extends Model
     public const CANCEL_WHEN_POLICY_IS_PAID_STATUSES = [
         PaymentStatus::Draft->value,
         PaymentStatus::Scheduled->value,
-        PaymentStatus::Overdue->value,
     ];
 
     protected $fillable = [

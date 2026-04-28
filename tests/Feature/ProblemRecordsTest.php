@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Filament\Widgets\AdminProblemRecordsTable;
-use App\Models\ProblemRecord;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use ReflectionMethod;
@@ -27,22 +26,22 @@ class ProblemRecordsTest extends TestCase
 
         $problemLead = $this->makeLeadRequest($inactiveManager, [
             'status' => 'new',
-            'source' => 'office',
+            'source' => 'manual',
         ]);
 
         $problemClient = $this->makeClient($inactiveManager, [
             'status' => 'active',
-            'source' => 'office',
+            'source' => 'manual',
         ]);
 
         $healthyLead = $this->makeLeadRequest($activeManager, [
             'status' => 'new',
-            'source' => 'office',
+            'source' => 'manual',
         ]);
 
         $healthyClient = $this->makeClient($activeManager, [
             'status' => 'active',
-            'source' => 'office',
+            'source' => 'manual',
         ]);
 
         $records = $this->getProblemRecords();
@@ -64,13 +63,13 @@ class ProblemRecordsTest extends TestCase
 
         $leadWithoutManager = $this->makeLeadRequest($manager, [
             'status' => 'in_progress',
-            'source' => 'office',
+            'source' => 'manual',
             'assigned_user_id' => null,
         ]);
 
         $clientWithoutManager = $this->makeClient($manager, [
             'status' => 'active',
-            'source' => 'office',
+            'source' => 'manual',
             'assigned_user_id' => null,
         ]);
 
@@ -92,23 +91,23 @@ class ProblemRecordsTest extends TestCase
 
         $rejectedLead = $this->makeLeadRequest($inactiveManager, [
             'status' => 'rejected',
-            'source' => 'office',
+            'source' => 'manual',
         ]);
 
         $convertedLead = $this->makeLeadRequest($inactiveManager, [
             'status' => 'converted',
-            'source' => 'office',
+            'source' => 'manual',
             'converted_client_id' => null,
         ]);
 
         $leadClient = $this->makeClient($inactiveManager, [
             'status' => 'lead',
-            'source' => 'office',
+            'source' => 'manual',
         ]);
 
         $archivedClient = $this->makeClient($inactiveManager, [
             'status' => 'archived',
-            'source' => 'office',
+            'source' => 'manual',
         ]);
 
         $records = $this->getProblemRecords();
@@ -141,7 +140,7 @@ class ProblemRecordsTest extends TestCase
     }
 
     /**
-     * @return Collection<int, ProblemRecord>
+     * @return Collection<int, \App\Models\ProblemRecord>
      */
     protected function getProblemRecords(): Collection
     {

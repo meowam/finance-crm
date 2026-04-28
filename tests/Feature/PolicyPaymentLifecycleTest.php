@@ -15,7 +15,7 @@ class PolicyPaymentLifecycleTest extends TestCase
     use RefreshDatabase;
     use CreatesDomainObjects;
 
-    public function test_paid_transfer_cancels_other_unfinished_payments_for_same_policy(): void
+    public function test_paid_transfer_cancels_other_draft_and_scheduled_payments_for_same_policy_but_keeps_overdue_final(): void
     {
         $manager = $this->makeUser('manager');
         $policy = $this->makePolicy($manager);
@@ -48,7 +48,7 @@ class PolicyPaymentLifecycleTest extends TestCase
 
         $this->assertSame('paid', $scheduled->refresh()->status->value);
         $this->assertSame('canceled', $draft->refresh()->status->value);
-        $this->assertSame('canceled', $overdue->refresh()->status->value);
+        $this->assertSame('overdue', $overdue->refresh()->status->value);
     }
 
     public function test_canceled_payment_is_locked_in_payment_form(): void
@@ -62,6 +62,25 @@ class PolicyPaymentLifecycleTest extends TestCase
             'amount' => 1500,
             'method' => 'no_method',
             'status' => 'canceled',
+        ]);
+
+        $method = new ReflectionMethod(PolicyPaymentForm::class, 'isLockedStatus');
+        $method->setAccessible(true);
+
+        $this->assertTrue($method->invoke(null, $payment));
+    }
+
+    public function test_overdue_payment_is_locked_in_payment_form(): void
+    {
+        $manager = $this->makeUser('manager');
+        $policy = $this->makePolicy($manager);
+
+        $payment = PolicyPayment::create([
+            'policy_id' => $policy->id,
+            'due_date' => now()->subDay()->toDateString(),
+            'amount' => 1500,
+            'method' => 'no_method',
+            'status' => 'overdue',
         ]);
 
         $method = new ReflectionMethod(PolicyPaymentForm::class, 'isLockedStatus');

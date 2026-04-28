@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PolicyPayments\Schemas;
 use App\Models\Policy;
 use App\Models\PolicyPayment;
 use App\Models\User;
+use BackedEnum;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
@@ -54,18 +55,18 @@ class PolicyPaymentForm
         return number_format(0, 2, '.', '');
     }
 
-    protected static function normalizedStatus($record): string
+    protected static function normalizedStatus(?PolicyPayment $record): string
     {
         if (! $record) {
             return '';
         }
 
-        return mb_strtolower((string) ($record->status instanceof \BackedEnum ? $record->status->value : $record->status));
+        return mb_strtolower((string) ($record->status instanceof BackedEnum ? $record->status->value : $record->status));
     }
 
-    protected static function isLockedStatus($record): bool
+    protected static function isLockedStatus(?PolicyPayment $record): bool
     {
-        return $record && in_array(static::normalizedStatus($record), [
+        return $record instanceof PolicyPayment && in_array(static::normalizedStatus($record), [
             'paid',
             'overdue',
             'refunded',
@@ -131,7 +132,7 @@ class PolicyPaymentForm
                         $set('due_date', self::resolveDueDate($policy));
                         $set('amount', self::resolveAmount($policy));
                     })
-                    ->disabled(fn ($record) => static::isLockedStatus($record))
+                    ->disabled(fn (?PolicyPayment $record) => static::isLockedStatus($record))
                     ->visibleOn(CreateRecord::class)
                     ->columnSpan(1),
 
@@ -143,7 +144,7 @@ class PolicyPaymentForm
                     ->label('Номер полісу')
                     ->readOnly()
                     ->dehydrated(false)
-                    ->afterStateHydrated(function ($state, callable $set, $record, $get) {
+                    ->afterStateHydrated(function ($state, callable $set, ?PolicyPayment $record, $get) {
                         $set('policy_number', $record?->policy?->policy_number ?? '—');
 
                         if (blank($get('due_date')) && $record?->policy) {
@@ -168,7 +169,7 @@ class PolicyPaymentForm
                     ->readOnly()
                     ->required()
                     ->rules(['required', 'date'])
-                    ->afterStateHydrated(function ($state, callable $set, $record, $get) {
+                    ->afterStateHydrated(function ($state, callable $set, ?PolicyPayment $record, $get) {
                         if (! blank($state)) {
                             return;
                         }
@@ -198,7 +199,7 @@ class PolicyPaymentForm
                     ->required()
                     ->rules(['numeric', 'min:0'])
                     ->reactive()
-                    ->afterStateHydrated(function ($state, callable $set, $record, $get) {
+                    ->afterStateHydrated(function ($state, callable $set, ?PolicyPayment $record, $get) {
                         if ($state !== null && $state !== '') {
                             return;
                         }
@@ -219,7 +220,7 @@ class PolicyPaymentForm
                         ? number_format((float) $state, 2, '.', '')
                         : number_format(0, 2, '.', '')
                     )
-                    ->disabled(fn ($record) => static::isLockedStatus($record))
+                    ->disabled(fn (?PolicyPayment $record) => static::isLockedStatus($record))
                     ->columnSpan(1),
 
                 Select::make('method')
@@ -265,7 +266,7 @@ class PolicyPaymentForm
                         $set('initiated_at', null);
                         $set('paid_at', null);
                     })
-                    ->disabled(fn ($record) => static::isLockedStatus($record))
+                    ->disabled(fn (?PolicyPayment $record) => static::isLockedStatus($record))
                     ->columnSpan(1),
 
                 Select::make('status')
@@ -326,7 +327,7 @@ class PolicyPaymentForm
                             $set('paid_at', null);
                         }
                     })
-                    ->disabled(fn ($record) => static::isLockedStatus($record))
+                    ->disabled(fn (?PolicyPayment $record) => static::isLockedStatus($record))
                     ->columnSpan(1),
 
                 Hidden::make('paid_at')
@@ -345,7 +346,7 @@ class PolicyPaymentForm
                     ->label('Нотатки')
                     ->rows(3)
                     ->dehydrateStateUsing(fn ($s) => filled($s) ? $s : null)
-                    ->disabled(fn ($record) => static::isLockedStatus($record))
+                    ->disabled(fn (?PolicyPayment $record) => static::isLockedStatus($record))
                     ->columnSpanFull(),
             ]);
     }

@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Services\Assignments\ManagerAssignmentService;
 use Carbon\Carbon;
 use Faker\Factory as Faker;
+use Faker\Generator as FakerGenerator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -48,13 +49,16 @@ class LeadRequestSeeder extends Seeder
                 'phone' => $client->primary_phone,
                 'email' => $client->primary_email,
                 'interest' => $this->randomInterest($faker),
-                'source' => $faker->randomElement(['office', 'landing', 'recommendation']),
+                'source' => $faker->randomElement(['landing', 'manual', 'recommendation']),
                 'status' => 'converted',
                 'comment' => 'Лід уже конвертовано у клієнта.',
                 'assigned_user_id' => $client->assigned_user_id,
                 'converted_client_id' => $client->id,
-                'created_at' => Carbon::instance($faker->dateTimeBetween(now()->subMonths(3), now()->subWeeks(2))),
-                'updated_at' => now()->subDays(rand(1, 10)),
+                'created_at' => $this->randomCarbonBetween(
+                    Carbon::now()->subMonths(3),
+                    Carbon::now()->subWeeks(2),
+                ),
+                'updated_at' => Carbon::now()->subDays(random_int(1, 10)),
             ]);
         }
 
@@ -73,9 +77,9 @@ class LeadRequestSeeder extends Seeder
             'landing',
             'landing',
             'landing',
-            'office',
-            'office',
-            'office',
+            'manual',
+            'manual',
+            'manual',
             'recommendation',
             'recommendation',
         ];
@@ -95,7 +99,10 @@ class LeadRequestSeeder extends Seeder
                 ?: $managers->random()->id;
 
             $status = $faker->randomElement($statusPool);
-            $createdAt = Carbon::instance($faker->dateTimeBetween(now()->subMonths(2), now()));
+            $createdAt = $this->randomCarbonBetween(
+                Carbon::now()->subMonths(2),
+                Carbon::now(),
+            );
 
             LeadRequest::query()->create([
                 'type' => $type,
@@ -112,21 +119,35 @@ class LeadRequestSeeder extends Seeder
                 'assigned_user_id' => $managerId,
                 'converted_client_id' => null,
                 'created_at' => $createdAt,
-                'updated_at' => $createdAt->copy()->addDays(rand(0, 10))->min(now()),
+                'updated_at' => $createdAt->copy()->addDays(random_int(0, 10))->min(Carbon::now()),
             ]);
         }
 
         $this->command?->info('Lead requests:');
 
         DB::table('lead_requests')
-            ->select('status', DB::raw('count(*) c'))
+            ->select([
+                'status',
+                DB::raw('count(*) as c'),
+            ])
             ->groupBy('status')
             ->orderBy('status')
             ->get()
             ->each(fn ($row) => $this->command?->info(" - {$row->status}: {$row->c}"));
     }
 
-    protected function randomInterest($faker): string
+    protected function randomCarbonBetween(Carbon $start, Carbon $end): Carbon
+    {
+        if ($end->lessThan($start)) {
+            return $start->copy();
+        }
+
+        return Carbon::createFromTimestamp(
+            random_int($start->timestamp, $end->timestamp)
+        );
+    }
+
+    protected function randomInterest(FakerGenerator $faker): string
     {
         return $faker->randomElement([
             'Автострахування',
@@ -139,7 +160,7 @@ class LeadRequestSeeder extends Seeder
         ]);
     }
 
-    protected function commentForStatus(string $status, $faker): ?string
+    protected function commentForStatus(string $status, FakerGenerator $faker): ?string
     {
         return match ($status) {
             'new' => $faker->randomElement([
