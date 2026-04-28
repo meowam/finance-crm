@@ -17,7 +17,7 @@ class ClientFactory extends Factory
             'primary_phone' => $this->faker->phoneNumber(),
             'city' => $this->faker->city(),
             'address_line' => $this->faker->streetAddress(),
-            'source' => $this->faker->randomElement(['online', 'office', 'referral']),
+            'source' => $this->faker->randomElement(['office', 'landing', 'recommendation']),
         ];
     }
 }

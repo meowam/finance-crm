@@ -95,7 +95,7 @@ class Reports extends Page implements HasSchemas
             return 'Ваші результати роботи за обраний період.';
         }
 
-          return 'Порівняння результатів менеджерів за обраний період.';
+        return 'Порівняння результатів менеджерів за обраний період.';
     }
 
     public function form(Schema $schema): Schema
@@ -164,7 +164,7 @@ class Reports extends Page implements HasSchemas
                             ->label('Джерело клієнта')
                             ->options([
                                 'office' => 'Офіс',
-                                'online' => 'Онлайн',
+                                'landing' => 'Лендінг',
                                 'recommendation' => 'Рекомендація',
                             ])
                             ->placeholder('Усі джерела')

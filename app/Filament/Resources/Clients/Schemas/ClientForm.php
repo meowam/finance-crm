@@ -39,8 +39,8 @@ class ClientForm
     protected static function sourceOptions(): array
     {
         return [
+            'office' => 'Офіс',
             'landing' => 'Лендінг',
-            'manual' => 'Створено вручну',
             'recommendation' => 'Рекомендація',
         ];
     }
@@ -277,7 +277,7 @@ class ClientForm
                         'required',
                         Rule::in(array_keys(static::sourceOptions())),
                     ])
-                    ->default('manual')
+                    ->default('office')
                     ->disabled(fn () => static::isProblemReassignMode())
                     ->validationMessages([
                         'required' => 'Оберіть канал звернення.',

@@ -21,6 +21,32 @@ use Illuminate\Validation\Rule;
 
 class ClaimForm
 {
+    public static function statusOptionsForOperation(?string $operation): array
+    {
+        if ($operation === 'create') {
+            return [
+                ClaimStatus::Reviewing->value => ClaimStatus::Reviewing->label(),
+            ];
+        }
+
+        return ClaimStatus::options();
+    }
+
+    public static function statusRulesForOperation(?string $operation): array
+    {
+        if ($operation === 'create') {
+            return [
+                'required',
+                Rule::in([ClaimStatus::Reviewing->value]),
+            ];
+        }
+
+        return [
+            'required',
+            Rule::in(ClaimStatus::values()),
+        ];
+    }
+
     public static function configure(Schema $schema): Schema
     {
         return $schema
@@ -92,10 +118,10 @@ class ClaimForm
 
                 Select::make('status')
                     ->label('Статус')
-                    ->options(ClaimStatus::options())
+                    ->options(fn (?string $operation): array => static::statusOptionsForOperation($operation))
                     ->native(false)
                     ->required()
-                    ->rules([Rule::in(ClaimStatus::values())])
+                    ->rules(fn (?string $operation): array => static::statusRulesForOperation($operation))
                     ->default(ClaimStatus::Reviewing->value)
                     ->columnSpan(1)
                     ->validationMessages([

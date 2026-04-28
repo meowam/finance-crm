@@ -49,7 +49,7 @@ trait CreatesDomainObjects
             'preferred_contact_method' => 'phone',
             'city' => 'Київ',
             'address_line' => 'вул. Хрещатик, 1',
-            'source' => 'manual',
+            'source' => 'office',
             'assigned_user_id' => $manager->id,
             'notes' => null,
         ], $overrides));
@@ -165,7 +165,7 @@ trait CreatesDomainObjects
             'phone' => '+38067' . str_pad((string) ($seq + 2000), 7, '0', STR_PAD_LEFT),
             'email' => "lead{$seq}@example.com",
             'interest' => 'Автострахування',
-            'source' => 'manual',
+            'source' => 'office',
             'status' => 'new',
             'comment' => 'Test lead',
             'assigned_user_id' => $manager->id,

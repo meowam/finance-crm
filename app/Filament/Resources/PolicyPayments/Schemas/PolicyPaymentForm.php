@@ -65,7 +65,12 @@ class PolicyPaymentForm
 
     protected static function isLockedStatus($record): bool
     {
-        return $record && in_array(static::normalizedStatus($record), ['paid', 'overdue', 'refunded'], true);
+        return $record && in_array(static::normalizedStatus($record), [
+            'paid',
+            'overdue',
+            'refunded',
+            'canceled',
+        ], true);
     }
 
     public static function configure(Schema $schema): Schema

@@ -49,8 +49,8 @@ class LeadRequestForm
     protected static function sourceOptions(): array
     {
         return [
+            'office' => 'Офіс',
             'landing' => 'Лендінг',
-            'manual' => 'Створено вручну',
             'recommendation' => 'Рекомендація',
         ];
     }
@@ -174,7 +174,7 @@ class LeadRequestForm
                     ->label('Джерело')
                     ->options(static::sourceOptions())
                     ->native(false)
-                    ->default('manual')
+                    ->default('office')
                     ->required()
                     ->rules([
                         'required',

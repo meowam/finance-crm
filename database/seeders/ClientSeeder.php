@@ -50,7 +50,7 @@ class ClientSeeder extends Seeder
                 'preferred_contact_method' => $faker->randomElement(['phone', 'email']),
                 'city' => $faker->city(),
                 'address_line' => $faker->streetAddress(),
-                'source' => $faker->randomElement(['landing', 'manual', 'recommendation']),
+                'source' => $faker->randomElement(['office', 'landing', 'recommendation']),
                 'assigned_user_id' => count($managers) ? $faker->randomElement($managers) : null,
                 'created_at' => $createdAt,
                 'notes' => null,
