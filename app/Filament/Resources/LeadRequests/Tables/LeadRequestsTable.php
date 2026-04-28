@@ -34,8 +34,8 @@ class LeadRequestsTable
     protected static function sourceOptions(): array
     {
         return [
+            'office' => 'Офіс',
             'landing' => 'Лендінг',
-            'manual' => 'Створено вручну',
             'recommendation' => 'Рекомендація',
         ];
     }

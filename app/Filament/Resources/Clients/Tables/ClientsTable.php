@@ -23,8 +23,8 @@ class ClientsTable
     protected static function sourceOptions(): array
     {
         return [
+            'office' => 'Офіс',
             'landing' => 'Лендінг',
-            'manual' => 'Створено вручну',
             'recommendation' => 'Рекомендація',
         ];
     }
@@ -153,8 +153,8 @@ class ClientsTable
                     ->formatStateUsing(fn ($state) => static::sourceOptions()[$state] ?? '—')
                     ->badge()
                     ->color(fn ($state) => match ($state) {
+                        'office' => 'gray',
                         'landing' => 'primary',
-                        'manual' => 'gray',
                         'recommendation' => 'warning',
                         default => 'gray',
                     })

@@ -281,7 +281,7 @@ class DiplomaDemoSeeder extends Seeder
                 'company_name' => 'ТОВ Очікує Пропозицію',
                 'phone' => $this->phone(2),
                 'interest' => 'Корпоративні програми',
-                'source' => 'manual',
+                'source' => 'office',
                 'status' => 'in_progress',
                 'comment' => 'Демо: менеджер уже зв’язався з клієнтом, очікуються документи.',
                 'assigned_user_id' => $manager->id,
