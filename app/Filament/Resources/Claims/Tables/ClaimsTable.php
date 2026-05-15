@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Filament\Resources\Claims\Tables;
 
 use App\Enums\ClaimStatus;
@@ -10,6 +9,7 @@ use App\Models\User;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +21,7 @@ class ClaimsTable
         $cases = collect(ClaimStatus::orderedValues())
             ->map(function (string $value, int $index): string {
                 $safeValue = str_replace("'", "''", $value);
-                $position = $index + 1;
+                $position  = $index + 1;
 
                 return "WHEN '{$safeValue}' THEN {$position}";
             })
@@ -60,18 +60,18 @@ class ClaimsTable
                 TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
-                    ->formatStateUsing(function (ClaimStatus|string|null $state): string {
-                        $value = ClaimStatus::normalize($state);
+                    ->formatStateUsing(function (ClaimStatus | string | null $state): string {
+                        $value  = ClaimStatus::normalize($state);
                         $status = ClaimStatus::tryFrom($value);
 
                         return $status?->label() ?? $value;
                     })
-                    ->color(function (ClaimStatus|string|null $state): string {
+                    ->color(function (ClaimStatus | string | null $state): string {
                         $value = ClaimStatus::normalize($state);
 
                         return ClaimStatus::tryFrom($value)?->color() ?? 'gray';
                     })
-                    ->sortable(query: fn (Builder $query, string $direction) =>
+                    ->sortable(query: fn(Builder $query, string $direction) =>
                         $query->orderByRaw(self::statusSortSql() . " {$direction}")
                     )
                     ->searchable(),
@@ -82,7 +82,7 @@ class ClaimsTable
 
                 TextColumn::make('policy.policy_number')
                     ->label('Поліс')
-                    ->url(fn (Claim $record) => PolicyResource::getUrl('edit', ['record' => $record->policy_id]))
+                    ->url(fn(Claim $record) => PolicyResource::getUrl('edit', ['record' => $record->policy_id]))
                     ->openUrlInNewTab()
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
@@ -108,8 +108,8 @@ class ClaimsTable
                     ->searchable(),
 
                 TextColumn::make('reportedBy.name')
-                    ->label('Хто зареєстрував')
-                    ->url(fn (Claim $record) => UserResource::getUrl('edit', ['record' => $record->reported_by_id]))
+                    ->label('Відповідальний')
+                    ->url(fn(Claim $record) => UserResource::getUrl('edit', ['record' => $record->reported_by_id]))
                     ->openUrlInNewTab()
                     ->searchable()
                     ->sortable()
@@ -147,7 +147,39 @@ class ClaimsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([])
+            ->filters([
+                SelectFilter::make('reported_by_id')
+                    ->label('Відповідальний')
+                    ->options(function (): array {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        if ($user instanceof User && $user->isManager()) {
+                            return [];
+                        }
+
+                        return User::query()
+                            ->where('role', 'manager')
+                            ->where('is_active', true)
+                            ->orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (blank($data['value'] ?? null)) {
+                            return $query;
+                        }
+
+                        return $query->where('reported_by_id', $data['value']);
+                    })
+                    ->visible(function (): bool {
+                        /** @var User|null $user */
+                        $user = Auth::user();
+
+                        return ! ($user instanceof User && $user->isManager());
+                    }),
+                    
+            ])
             ->recordActions([
                 EditAction::make()->label('Редагувати'),
             ])

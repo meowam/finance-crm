@@ -61,7 +61,7 @@ class ActivityLogsTable
 
             'claim_number'             => 'Номер заяви',
             'policy_id'                => 'Поліс',
-            'reported_by_id'           => 'Хто зареєстрував',
+            'reported_by_id'           => 'Відповідальний',
             'reported_at'              => 'Дата звернення',
             'loss_occurred_at'         => 'Дата події',
             'loss_location'            => 'Місце події',
